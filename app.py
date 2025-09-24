@@ -1,10 +1,9 @@
 import os, time, hmac, hashlib
-from flask import Flask, request, jsonify
+from flask import Flask, request
 import requests
-from dotenv import load_dotenv
 
-load_dotenv()
-SLACK_SIGNING_SECRET = os.getenv("SLACK_SIGNING_SECRET")
+SLACK_SIGNING_SECRET = os.environ["SLACK_SIGNING_SECRET"]
+
 app = Flask(__name__)
 
 def verify_slack(req):
@@ -15,13 +14,8 @@ def verify_slack(req):
     if abs(time.time() - int(ts)) > 60*5:
         return False
     body = req.get_data().decode("utf-8")
-    base = f"v0:{ts}:{body}".encode("utf-8")
-    my_sig = "v0=" + hmac.new(
-        SLACK_SIGNING_SECRET.encode("utf-8"),
-        base,
-        hashlib.sha256
-    ).hexdigest()
-    # constant-time compare
+    base = f"v0:{ts}:{body}".encode()
+    my_sig = "v0=" + hmac.new(SLACK_SIGNING_SECRET.encode(), base, hashlib.sha256).hexdigest()
     return hmac.compare_digest(my_sig, sig)
 
 @app.post("/slack/commands")
@@ -33,14 +27,12 @@ def slash():
     text = (request.form.get("text") or "").strip() or "(no message provided)"
     response_url = request.form["response_url"]
 
-    # ACK within 3s
-    # You can also respond inline with JSON instead of delayed post.
-    # Here we ACK empty, then use response_url to post publicly.
+    # delayed public response (safe if your logic might exceed 3s)
     requests.post(response_url, json={
         "response_type": "in_channel",
         "text": f"<!@{user_id}> asked: {text}",
     })
-    return "", 200
+    return "", 200  # ACK within 3s
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=8080)
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8080)))
