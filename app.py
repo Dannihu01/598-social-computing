@@ -1,27 +1,38 @@
+# app.py
 import os
 import time
 import hmac
 import hashlib
-from flask import Flask, request, jsonify
+import threading
+import logging
+from typing import Optional
+
 import requests
-import google.generativeai as genai  # assumes the SDK
+from flask import Flask, request, jsonify
 
-# Slack secret & Gemini key from env
-SLACK_SIGNING_SECRET = os.environ["SLACK_SIGNING_SECRET"]
-SLACK_BOT_TOKEN = os.environ.get("SLACK_BOT_TOKEN")  # needed if posting using chat.postMessage
-GEN_API_KEY = os.environ["GEMINI_API_KEY"]
+# ==== Environment / Config ====
+SLACK_SIGNING_SECRET = os.environ["SLACK_SIGNING_SECRET"]            # set in Render
+GEMINI_API_KEY = os.environ["GEMINI_API_KEY"]                        # set in Render
+GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-1.5-flash")    # override if you want
+PORT = int(os.environ.get("PORT", 8080))
 
+# Optional: switch to REST instead of SDK by setting GEMINI_USE_REST=1
+USE_REST = os.environ.get("GEMINI_USE_REST", "0") == "1"
+
+# Logging
+logging.basicConfig(level=logging.INFO)
+log = logging.getLogger("slack-ask-bot")
+
+# Flask app
 app = Flask(__name__)
 
-# configure Gemini SDK
-genai.configure(api_key=GEN_API_KEY)
-
-def verify_slack(req):
+# ==== Slack signature verification ====
+def verify_slack(req) -> bool:
     ts = req.headers.get("X-Slack-Request-Timestamp", "")
     sig = req.headers.get("X-Slack-Signature", "")
     if not ts or not sig:
         return False
-    # prevent replay
+    # prevent replay attacks (5m window)
     if abs(time.time() - int(ts)) > 60 * 5:
         return False
     body = req.get_data().decode("utf-8")
@@ -29,42 +40,110 @@ def verify_slack(req):
     my_sig = "v0=" + hmac.new(SLACK_SIGNING_SECRET.encode("utf-8"), base, hashlib.sha256).hexdigest()
     return hmac.compare_digest(my_sig, sig)
 
+# ==== Gemini clients ====
+def ask_gemini_rest(prompt: str, model: Optional[str] = None, timeout: int = 20) -> str:
+    """Call Gemini via REST (no SDK)."""
+    model = model or GEMINI_MODEL
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
+    headers = {"Content-Type": "application/json", "x-goog-api-key": GEMINI_API_KEY}
+    payload = {"contents": [{"parts": [{"text": prompt}]}]}
+    r = requests.post(url, headers=headers, json=payload, timeout=timeout)
+    r.raise_for_status()
+    j = r.json()
+    try:
+        return (
+            j.get("candidates", [{}])[0]
+             .get("content", {})
+             .get("parts", [{}])[0]
+             .get("text", "")
+        ).strip()
+    except Exception:
+        return ""
+
+# Try SDK import if allowed
+genai = None
+model_obj = None
+if not USE_REST:
+    try:
+        import google.generativeai as genai  # type: ignore
+        genai.configure(api_key=GEMINI_API_KEY)
+        model_obj = genai.GenerativeModel(GEMINI_MODEL)
+        log.info(f"Gemini SDK initialized with model: {GEMINI_MODEL}")
+    except Exception as e:
+        log.warning(f"Gemini SDK not available or failed to init ({e}); falling back to REST.")
+        genai = None
+        model_obj = None
+        USE_REST = True
+
+def ask_gemini(prompt: str) -> str:
+    """Ask Gemini using SDK if available; otherwise REST."""
+    try:
+        if not USE_REST and model_obj is not None:
+            resp = model_obj.generate_content(prompt)  # simple single-turn call
+            text = getattr(resp, "text", "") or ""
+            return text.strip()
+        # REST fallback
+        return ask_gemini_rest(prompt)
+    except Exception as e:
+        log.exception("Gemini call failed")
+        return f"(Gemini error: {e})"
+
+# ==== Helper: safe Slack post via response_url ====
+def post_to_response_url(response_url: str, text: str) -> None:
+    try:
+        requests.post(response_url, json={
+            "response_type": "in_channel",  # public message
+            "text": text
+        }, timeout=15)
+    except Exception:
+        log.exception("Failed posting to response_url")
+
+# ==== Routes ====
+@app.get("/")
+def root():
+    # Simple health page
+    return jsonify({"ok": True, "service": "slack-ask-bot", "model": GEMINI_MODEL, "rest": USE_REST}), 200
+
 @app.post("/slack/commands")
 def slash():
-    # Verify request
+    # Verify Slack signature
     if not verify_slack(request):
         return "invalid signature", 401
 
-    user_id = request.form.get("user_id")
+    # Parse slash command payload (x-www-form-urlencoded)
+    user_id = request.form.get("user_id", "")
     text = (request.form.get("text") or "").strip()
-    response_url = request.form["response_url"]
+    response_url = request.form.get("response_url")
 
+    # Basic usage help
     if not text:
-        # early return
         return jsonify({
             "response_type": "ephemeral",
-            "text": "You didn’t provide a prompt."
+            "text": "Usage: `/ask <prompt>`"
         }), 200
 
-    # Option A: synchronous call (if Gemini is fast)
-    try:
-        resp = genai.models.generate_content(
-            model="gemini-2.5-flash",  # or whichever model
-            contents=text
-        )
-        answer = resp.text
-    except Exception as e:
-        answer = f"Error calling Gemini: {str(e)}"
+    if not response_url:
+        # Shouldn't happen for real Slash Commands
+        log.error("Missing response_url in Slack payload.")
+        return jsonify({
+            "response_type": "ephemeral",
+            "text": "Error: missing response_url from Slack."
+        }), 200
 
-    # Send back to Slack publicly
-    # Using response_url
-    requests.post(response_url, json={
-        "response_type": "in_channel",
-        "text": f"<@{user_id}> asked: {text}\n\n*Gemini says:* {answer}"
-    })
+    # ACK immediately so Slack doesn't time out
+    # Do the Gemini call + public post in the background
+    def worker():
+        log.info("Calling Gemini...")
+        answer = ask_gemini(text)
+        if not answer:
+            answer = "(no answer)"
+        message = f"<@{user_id}> asked: {text}\n\n*Gemini:* {answer}"
+        post_to_response_url(response_url, message)
+        log.info("Posted response to Slack.")
 
-    # immediate ACK
+    threading.Thread(target=worker, daemon=True).start()
     return "", 200
 
+# ==== Entrypoint ====
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8080)))
+    app.run(host="0.0.0.0", port=PORT)
