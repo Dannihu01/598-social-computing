@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: slack-ask-bot
+    env: python
+    plan: free
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "gunicorn app:app -w 2 -k gthread -b 0.0.0.0:$PORT --threads 8 --timeout 30"
+    envVars:
+      - key: SLACK_SIGNING_SECRET
+        sync: false
