@@ -6,10 +6,12 @@ import hashlib
 import threading
 import logging
 from typing import Optional
+from dotenv import load_dotenv
 
 import requests
 from flask import Flask, request, jsonify
 
+load_dotenv()
 # ==== Environment / Config ====
 SLACK_SIGNING_SECRET = os.environ["SLACK_SIGNING_SECRET"]            # set in Render
 GEMINI_API_KEY = os.environ["GEMINI_API_KEY"]                        # set in Render
@@ -104,7 +106,9 @@ def root():
     # Simple health page
     return jsonify({"ok": True, "service": "slack-ask-bot", "model": GEMINI_MODEL, "rest": USE_REST}), 200
 
-@app.post("/slack/commands")
+@app.route("/slack/commands", methods=['POST'])
+# def slack_command():
+#     return "Command received", 200
 def slash():
     # Verify Slack signature
     if not verify_slack(request):

@@ -1,11 +1,8 @@
 ## Getting Started
 ### Local Development
-1. Install the Slack CLI [here](https://docs.slack.dev/tools/slack-cli/guides/installing-the-slack-cli-for-mac-and-linux)
-2. `cd first-bolt-app`
-3. Create a venv and install the requirements in terminal:
-    ```
-    % python -m venv .venv
-    % source .venv/bin/activate
-    % pip install -r requirements.txt
-    ```
-4. Then call `slack run` to being the app
+1. create a `.venv` using `python -m venv .venv`
+2. For windows, use `.venv/Scripts/Activate`
+3. then, do `python app.py`. This will launch the app on `host:8080`
+4. launch another terminal, using ngrok (need to install). Run the following:
+        `ngrok http 8080`
+5. TODO

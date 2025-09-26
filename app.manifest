@@ -1,0 +1,33 @@
+{
+    "display_information": {
+        "name": "598 Social Computing Bot"
+    },
+    "features": {
+        "bot_user": {
+            "display_name": "598 Social Computing Bot",
+            "always_online": true
+        },
+        "slash_commands": [
+            {
+                "command": "/ask",
+                "url": "https://five98-social-computing-bot.onrender.com/slack/commands",
+                "description": "test?",
+                "should_escape": false
+            }
+        ]
+    },
+    "oauth_config": {
+        "scopes": {
+            "bot": [
+                "chat:write",
+                "channels:read",
+                "commands"
+            ]
+        }
+    },
+    "settings": {
+        "org_deploy_enabled": false,
+        "socket_mode_enabled": false,
+        "token_rotation_enabled": false
+    }
+}
