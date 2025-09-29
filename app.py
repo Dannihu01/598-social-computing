@@ -15,7 +15,7 @@ load_dotenv()
 # ==== Environment / Config ====
 SLACK_SIGNING_SECRET = os.environ["SLACK_SIGNING_SECRET"]            # set in Render
 GEMINI_API_KEY = os.environ["GEMINI_API_KEY"]                        # set in Render
-GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-1.5-flash")    # override if you want
+GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")    # override if you want
 PORT = int(os.environ.get("PORT", 8080))
 
 # Optional: switch to REST instead of SDK by setting GEMINI_USE_REST=1
