@@ -11,7 +11,7 @@ def init_pool(dsn=None):
         _db_pool = psycopg2.pool.SimpleConnectionPool(
             minconn=1,
             maxconn=10,
-            dsn=dsn or "user=... password=... host=... dbname=..."
+            dsn=dsn
         )
 
 
