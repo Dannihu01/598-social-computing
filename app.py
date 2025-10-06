@@ -1,4 +1,9 @@
-# app.py
+# --------------------------------------------------
+# File: app.py
+# Description: Initializes the Flask application, sets up logging, 
+# and registers the Slack command routes for the Slack Ask Bot service.
+# --------------------------------------------------
+
 import logging
 from flask import Flask, jsonify
 from config import PORT

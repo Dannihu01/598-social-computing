@@ -1,4 +1,10 @@
-# routes/commands.py
+# --------------------------------------------------
+# File: routes/commands.py
+# Description: Defines Flask routes for Slack slash commands, including
+# /dm_test, /announce, and /ask. Handles Slack verification, message
+# posting, and asynchronous Gemini API responses.
+# --------------------------------------------------
+
 import re, threading, logging
 from flask import Blueprint, request, jsonify
 from utils.verify import verify_slack

@@ -1,4 +1,10 @@
-# services/gemini_client.py
+# --------------------------------------------------
+# File: services/gemini_client.py
+# Description: Provides an interface to the Gemini API for text generation,
+# supporting both the official SDK and REST fallback modes.
+# --------------------------------------------------
+
+
 import logging, requests
 from config import GEMINI_API_KEY, GEMINI_MODEL, GEMINI_USE_REST
 

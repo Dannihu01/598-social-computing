@@ -1,4 +1,9 @@
-# utils/verify.py
+# --------------------------------------------------
+# File: utils/verify.py
+# Description: Verifies incoming Slack requests using the signing secret 
+# and timestamp to ensure authenticity and prevent replay attacks.
+# --------------------------------------------------
+
 import time, hmac, hashlib
 from config import SLACK_SIGNING_SECRET
 

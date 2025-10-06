@@ -1,4 +1,10 @@
-# config.py
+# --------------------------------------------------
+# File: config.py
+# Description: Loads environment variables and configuration settings 
+# for the Slack Ask Bot, including server port, Slack credentials, 
+# and Gemini API parameters.
+# --------------------------------------------------
+
 import os
 from dotenv import load_dotenv
 load_dotenv()
