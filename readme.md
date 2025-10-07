@@ -14,5 +14,4 @@
 5. Do `/ask [your prompt]` in the sandbox to start a chat
 
 ### TODOs to make Dev easier
-1. Hot reloading so the local deploy doesn't need to be restarted everytime
-2. Better file management; Once we figure out a process, routes should be segmented on their function
+1. Better file management; Once we figure out a process, routes should be segmented on their function
