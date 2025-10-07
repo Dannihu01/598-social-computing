@@ -172,7 +172,10 @@ def slash():
         log.info("Posted response to Slack.")
 
     threading.Thread(target=worker, daemon=True).start()
-    return "", 200
+    return jsonify({
+        "response_type": "ephemeral",
+        "text": "Thanks — working on it now. I'll post the result here when ready."
+    }), 200
 
 
 @app.route("/testing/db", methods=["GET"])
