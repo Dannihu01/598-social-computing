@@ -30,6 +30,8 @@ def slash():
 
     # ---------- /dm ----------
     if command == "/dm_test":
+        #TODO: Get users from DB and do this action
+        #TODO (stretch): Automatically send dms based on a criteria (webhook/automated runs)
         m = re.search(r"<@([A-Z0-9]+)(?:\|[^>]+)?>", text)
         if not m:
             return jsonify({"text": "Usage: /dm @user your message"}), 200
@@ -99,3 +101,5 @@ def slash():
 
     # Unknown command
     return jsonify({"response_type": "ephemeral", "text": f"Unsupported command: {command}"}), 200
+
+    #TODO: Create groups 

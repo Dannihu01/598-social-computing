@@ -12,7 +12,6 @@ log = logging.getLogger("slack-ask-bot")
 
 _genai = None
 _model_obj = None
-
 if GEMINI_API_KEY and not GEMINI_USE_REST:
     try:
         import google.generativeai as genai  # type: ignore
@@ -53,3 +52,7 @@ def ask_gemini(prompt: str) -> str:
     except Exception as e:
         log.exception("Gemini call failed")
         return f"(Gemini error: {e})"
+
+#TODO: Allow for structured outputs
+def ask_gemini_structured() -> None:
+    pass
