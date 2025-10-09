@@ -13,7 +13,7 @@ from utils.verify import verify_slack
 from utils.slack_api import post_to_response_url, open_im, chat_post_message
 from services.gemini_client import ask_gemini
 
-from database.repos import users
+from database.repos import responses
 log = logging.getLogger("slack-ask-bot")
 commands_bp = Blueprint("commands_bp", __name__, url_prefix="/slack")
 
@@ -106,12 +106,11 @@ def slash():
             return jsonify({"response_type": "ephemeral", "text": "Usage: `/ask <prompt>`"}), 200
 
         def worker():
-            user = users.create_user("U12345")
-            found = users.get_user_by_uuid(str(user.uuid))
-            print(user)
+            # user = users.create_user("U12345")
+            responses_list = responses.get_event_responses('event1')
             # message = f"<@{user_id}> asked: {text}\n\n*Gemini:* {answer}"
             try:
-                post_to_response_url(response_url, str(found))
+                post_to_response_url(response_url, str(responses_list))
             except Exception:
                 log.exception("Failed to post /ask response")
         threading.Thread(target=worker, daemon=True).start()
