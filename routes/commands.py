@@ -13,7 +13,7 @@ from utils.verify import verify_slack
 from utils.slack_api import post_to_response_url, open_im, chat_post_message
 from services.gemini_client import ask_gemini
 
-from database.repos import responses
+from database.repos import responses, users
 log = logging.getLogger("slack-ask-bot")
 commands_bp = Blueprint("commands_bp", __name__, url_prefix="/slack")
 
@@ -34,6 +34,7 @@ def slash():
 
     # ---------- /dm ----------
     if command == "/dm_test":
+        # users_list = users.list_users()
         # TODO: Get users from DB and do this action
         # TODO (stretch): Automatically send dms based on a criteria (webhook/automated runs)
         m = re.search(r"<@([A-Z0-9]+)(?:\|[^>]+)?>", text)
