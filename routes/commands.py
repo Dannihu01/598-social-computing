@@ -5,24 +5,28 @@
 # posting, and asynchronous Gemini API responses.
 # --------------------------------------------------
 
-import re, threading, logging
+import re
+import threading
+import logging
 from flask import Blueprint, request, jsonify
 from utils.verify import verify_slack
 from utils.slack_api import post_to_response_url, open_im, chat_post_message
 from services.gemini_client import ask_gemini
 
+from database.repos import responses, users
 log = logging.getLogger("slack-ask-bot")
 commands_bp = Blueprint("commands_bp", __name__, url_prefix="/slack")
+
 
 @commands_bp.post("/commands")
 def slash():
     if not verify_slack(request):
         return "invalid signature", 401
 
-    command      = request.form.get("command", "")
-    user_id      = request.form.get("user_id", "")
-    channel_id   = request.form.get("channel_id", "")
-    text         = (request.form.get("text") or "").strip()
+    command = request.form.get("command", "")
+    user_id = request.form.get("user_id", "")
+    channel_id = request.form.get("channel_id", "")
+    text = (request.form.get("text") or "").strip()
     response_url = request.form.get("response_url")
 
     if not response_url:
@@ -30,8 +34,9 @@ def slash():
 
     # ---------- /dm ----------
     if command == "/dm_test":
-        #TODO: Get users from DB and do this action
-        #TODO (stretch): Automatically send dms based on a criteria (webhook/automated runs)
+        # users_list = users.list_users()
+        # TODO: Get users from DB and do this action
+        # TODO (stretch): Automatically send dms based on a criteria (webhook/automated runs)
         m = re.search(r"<@([A-Z0-9]+)(?:\|[^>]+)?>", text)
         if not m:
             return jsonify({"text": "Usage: /dm @user your message"}), 200
@@ -81,8 +86,6 @@ def slash():
         threading.Thread(target=worker, daemon=True).start()
         return "", 200
 
-
-
     # ---------- /ask_test_danni ----------
     if command == "/ask_test_danni":
         if not text:
@@ -97,9 +100,24 @@ def slash():
                 log.exception("Failed to post /ask response")
         threading.Thread(target=worker, daemon=True).start()
         return "", 200
-    
+
+        # ---------- /Jakob's testing command ----------
+    if command == "/jakob_test":
+        if not text:
+            return jsonify({"response_type": "ephemeral", "text": "Usage: `/ask <prompt>`"}), 200
+
+        def worker():
+            # user = users.create_user("U12345")
+            responses_list = responses.get_event_responses('event1')
+            # message = f"<@{user_id}> asked: {text}\n\n*Gemini:* {answer}"
+            try:
+                post_to_response_url(response_url, str(responses_list))
+            except Exception:
+                log.exception("Failed to post /ask response")
+        threading.Thread(target=worker, daemon=True).start()
+        return "", 200
 
     # Unknown command
     return jsonify({"response_type": "ephemeral", "text": f"Unsupported command: {command}"}), 200
 
-    #TODO: Create groups 
+    # TODO: Create groups

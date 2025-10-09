@@ -1,6 +1,5 @@
 import psycopg2
 from psycopg2 import pool
-
 _db_pool = None
 
 
