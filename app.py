@@ -8,6 +8,7 @@ import logging
 from flask import Flask, jsonify
 from config import PORT
 from routes.commands import commands_bp
+from routes.events import events_bp
 import os
 from database import db
 
@@ -16,6 +17,7 @@ log = logging.getLogger("slack-ask-bot")
 
 app = Flask(__name__)
 app.register_blueprint(commands_bp)  # mounts /slack/commands
+app.register_blueprint(events_bp)  # mounts /slack/events
 
 
 # DB access
