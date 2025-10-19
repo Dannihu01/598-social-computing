@@ -72,6 +72,7 @@ def list_users(limit: int = 100) -> List[User]:
         rows = cur.fetchall()
         return [User(uuid=row[0], slack_id=row[1]) for row in rows]
 
+
 # example usage
 # user = create_user("U12345")
 # found = get_user_by_uuid(str(user.uuid))
