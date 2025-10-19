@@ -15,6 +15,7 @@ if __name__ == "__main__":
         user=os.environ.get("DATABASE_USER"),
         password=os.environ.get("DATABASE_PASSWORD"),
         port=os.environ.get("DATABASE_PORT"),
+        database="slackbot_dev",
         connect_timeout=10
     )
     conn.autocommit = True

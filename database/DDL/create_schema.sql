@@ -1,3 +1,14 @@
+-- Drop existing tables (in reverse dependency order)
+DROP TABLE IF EXISTS bot_interventions;
+DROP TABLE IF EXISTS thread_participants;
+DROP TABLE IF EXISTS monitored_threads;
+DROP TABLE IF EXISTS event_messaging;
+DROP TABLE IF EXISTS responses;
+DROP TABLE IF EXISTS sys_messages;
+DROP TABLE IF EXISTS events;
+DROP TABLE IF EXISTS users;
+DROP TYPE IF EXISTS sys_message_type;
+
 -- 1. ENUM Type for sys_messages.type
 CREATE TYPE sys_message_type AS ENUM ('private', 'aggregated');
 
@@ -7,33 +18,33 @@ CREATE TABLE users (
     slack_id    TEXT
 );
 
--- 3. Events Table
+-- 3. Events Table (with SERIAL ID)
 CREATE TABLE events (
-    id              TEXT PRIMARY KEY,
+    id              SERIAL PRIMARY KEY,
     time_start      TIMESTAMPTZ,
     day_duration    INTEGER
 );
 
--- 4. Sys Messages Table
+-- 4. Sys Messages Table (with SERIAL ID)
 CREATE TABLE sys_messages (
-    id          TEXT PRIMARY KEY,
+    id          SERIAL PRIMARY KEY,
     type        sys_message_type,
     content     TEXT
 );
 
--- 5. Responses Table
+-- 5. Responses Table (with SERIAL ID)
 CREATE TABLE responses (
-    id              TEXT PRIMARY KEY,
+    id              SERIAL PRIMARY KEY,
     entry           TEXT,
     submitted_at    TIMESTAMPTZ,
     user_id         UUID REFERENCES users(uuid) ON DELETE CASCADE,
-    event_id        TEXT REFERENCES events(id) ON DELETE CASCADE
+    event_id        INTEGER REFERENCES events(id) ON DELETE CASCADE
 );
 
 -- 6. Event Messaging Table (Linking Table with Composite PK)
 CREATE TABLE event_messaging (
-    event_id        TEXT REFERENCES events(id) ON DELETE CASCADE,
-    sys_message_id  TEXT REFERENCES sys_messages(id) ON DELETE CASCADE,
+    event_id        INTEGER REFERENCES events(id) ON DELETE CASCADE,
+    sys_message_id  INTEGER REFERENCES sys_messages(id) ON DELETE CASCADE,
     PRIMARY KEY (event_id, sys_message_id)
 );
 

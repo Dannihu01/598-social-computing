@@ -5,6 +5,7 @@
 # --------------------------------------------------
 
 import logging
+import atexit
 from flask import Flask, jsonify
 from config import PORT
 from routes.commands import commands_bp
@@ -25,6 +26,9 @@ app.register_blueprint(events_bp)  # mounts /slack/events
 dsn = f"dbname={os.environ.get('DATABASE_NAME')} user={os.environ['DATABASE_USER']} password={os.environ['DATABASE_PASSWORD']} host={os.environ['DATABASE_HOST']} port={os.environ.get('DATABASE_PORT',5432)}"
 db.init_pool(dsn=dsn)
 
+# Register cleanup function to close DB pool on app shutdown
+atexit.register(db.close_pool)
+
 
 @app.get("/")
 def root():
@@ -32,5 +36,9 @@ def root():
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=PORT, debug=True)
+    try:
+        app.run(host="0.0.0.0", port=PORT, debug=True)
+    finally:
+        # Ensure DB pool is closed on exit
+        db.close_pool()
 
