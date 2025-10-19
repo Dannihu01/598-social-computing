@@ -86,6 +86,21 @@ def slash():
         threading.Thread(target=worker, daemon=True).start()
         return "", 200
 
+    # ---------- /ask ----------
+    if command == "/ask_rayhan":
+        if not text:
+            return jsonify({"response_type": "ephemeral", "text": "Usage: `/ask <prompt>`"}), 200
+
+        def worker():
+            answer = ask_gemini(text) or "(no answer)"
+            message = f"<@{user_id}> asked: {text}\n\n*Gemini:* {answer}"
+            try:
+                post_to_response_url(response_url, message)
+            except Exception:
+                log.exception("Failed to post /ask response")
+        threading.Thread(target=worker, daemon=True).start()
+        return "", 200
+
     # ---------- /ask_test_danni ----------
     if command == "/ask_test_danni":
         if not text:
