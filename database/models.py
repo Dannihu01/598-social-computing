@@ -12,7 +12,7 @@ class SysMessageType(str, enum.Enum):
 
 @dataclass
 class User:
-    uuid: UUID
+    id: int
     slack_id: Optional[str]
 
 

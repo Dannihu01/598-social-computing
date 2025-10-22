@@ -14,7 +14,7 @@ CREATE TYPE sys_message_type AS ENUM ('private', 'aggregated');
 
 -- 2. Users Table
 CREATE TABLE users (
-    uuid        UUID PRIMARY KEY,
+    id          SERIAL PRIMARY KEY,
     slack_id    TEXT
 );
 
@@ -37,7 +37,7 @@ CREATE TABLE responses (
     id              SERIAL PRIMARY KEY,
     entry           TEXT,
     submitted_at    TIMESTAMPTZ,
-    user_id         UUID REFERENCES users(uuid) ON DELETE CASCADE,
+    user_id         INTEGER REFERENCES users(id) ON DELETE CASCADE,
     event_id        INTEGER REFERENCES events(id) ON DELETE CASCADE
 );
 
