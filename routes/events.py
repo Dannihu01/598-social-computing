@@ -5,6 +5,8 @@ from services.thread_monitor import process_message_event, process_reaction_even
 from database.repos import users, responses
 from database.repos.events import get_active_event
 
+from database.repos.responses import add_response
+
 log = logging.getLogger("slack-ask-bot")
 events_bp = Blueprint("events_bp", __name__, url_prefix="/slack")
 
@@ -31,11 +33,8 @@ def process_dm_message(event):
             return
 
         # Save the response to the database
-        response_id = responses.create_response(
-            user_id=user.id,
-            event_id=active_event.id,
-            entry=text
-        )
+
+        result = add_response(user_slack_id=user_id, response=text)
 
         log.info(
             f"Saved DM response from {user_id} for event {active_event.id}: {text[:50]}...")
@@ -80,3 +79,5 @@ def slack_events():
 
     # Acknowledge receipt immediately
     return "", 200
+
+

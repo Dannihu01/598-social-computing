@@ -1,14 +1,13 @@
 from database.db import get_db_cursor
 from database.models import User
 from typing import Optional, List
-
+import uuid
 
 def create_user(slack_id: Optional[str]) -> User:
     with get_db_cursor() as cur:
-        user_id = str(id.id4())
         cur.execute(
-            "INSERT INTO users (id, slack_id) VALUES (%s, %s) RETURNING id, slack_id",
-            (user_id, slack_id)
+            "INSERT INTO users (slack_id) VALUES (%s) RETURNING slack_id",
+            (slack_id)
         )
         row = cur.fetchone()
         cur.connection.commit()
