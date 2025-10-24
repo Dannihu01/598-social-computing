@@ -4,7 +4,7 @@ CREATE TYPE sys_message_type AS ENUM ('private', 'aggregated');
 -- 2. Users Table
 CREATE TABLE users (
     uuid        UUID PRIMARY KEY,
-    slack_id    TEXT
+    slack_id    TEXT UNIQUE
 );
 
 -- 3. Events Table

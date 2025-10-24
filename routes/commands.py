@@ -131,6 +131,43 @@ def slash():
                 log.exception("Failed to post /ask response")
         threading.Thread(target=worker, daemon=True).start()
         return "", 200
+    
+     # ---------- /ask_test_emily ----------
+    if command == "/ask_emily":
+        if not text:
+            return jsonify({"response_type": "ephemeral", "text": "Usage: `/ask <prompt>`"}), 200
+
+        def worker():
+            answer = ask_gemini(text) or "(no answer)"
+            message = f"<@{user_id}> asked: {text}\n\n*Gemini:* {answer}"
+            try:
+                post_to_response_url(response_url, message)
+            except Exception:
+                log.exception("Failed to post /ask response")
+        threading.Thread(target=worker, daemon=True).start()
+        return "", 200
+    
+    # ---------- /opt_in ----------
+    if command == "/opt_in":
+        slack_id = request.form.get("user_id")
+        user = users.get_user_by_slack_id(slack_id)
+        if user:
+            return jsonify({"text": "✅ You’re already opted in!"})
+        # User not found → create
+        user = users.create_user(slack_id)
+        return jsonify({"text": f"🎉 You’ve successfully opted in! (UUID: {user.uuid})"})
+    
+    # ---------- /opt_out ----------
+    if command == "/opt_out":
+        print("inside opt out function")
+        slack_id = request.form.get("user_id")
+        user = users.get_user_by_slack_id(slack_id)
+        if user:
+            # User found → delete
+            deleted = users.delete_user(user.uuid)
+            if deleted:
+                return jsonify({"text": "👋 You’ve successfully opted out."})
+        return jsonify({"text": "⚠️ You weren’t opted in."})
 
     # Unknown command
     return jsonify({"response_type": "ephemeral", "text": f"Unsupported command: {command}"}), 200
