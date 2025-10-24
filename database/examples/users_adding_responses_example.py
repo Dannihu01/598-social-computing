@@ -1,6 +1,5 @@
 import sys
 import os
-from datetime import datetime, timedelta
 from dotenv import load_dotenv
 
 # Add the project root directory to the path so we can import our modules
@@ -13,8 +12,8 @@ sys.path.insert(0, project_root)
 
 
 def import_database_modules():
-    global create_event, get_active_event, delete_event, init_pool, close_pool, add_response, get_user_by_slack_id
-    from database.repos.events import create_event, get_active_event, delete_event
+    global create_event, get_active_event, init_pool, close_pool, add_response, get_user_by_slack_id, delete_all_events
+    from database.repos.events import create_event, get_active_event, delete_all_events
     from database.repos.users import get_user_by_slack_id
     from database.db import init_pool, close_pool
     from database.repos.responses import add_response
@@ -51,11 +50,12 @@ def main():
 
         print("Adding response for user 1...")
         result = add_response(user_slack_id="therkels",
-                              response="I hate the event!")
+                              response="I think the event is okay!")
         print(f"Result: {result}")
     except Exception as e:
         print(f"Error: {e}")
     finally:
+        delete_all_events()
         close_pool()
         print("Database connection closed!")
 

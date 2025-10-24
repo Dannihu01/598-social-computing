@@ -100,7 +100,8 @@ def delete_event(event_id: int) -> Literal["success", "event_not_found", "databa
                 return "event_not_found"
 
             # Delete the event (cascade will handle related records)
-            cur.execute("DELETE FROM events WHERE id = %s", (event_id,))
+            cur.execute(
+                "DELETE FROM events WHERE id = %s CASCADE", (event_id,))
             rows_deleted = cur.rowcount
             cur.connection.commit()
 
@@ -122,3 +123,10 @@ def get_active_event() -> Optional[Event]:
         if row:
             return Event(id=row[0], time_start=row[1], day_duration=row[2])
         return None
+
+
+def delete_all_events():
+    with get_db_cursor() as cur:
+        cur.execute("DELETE FROM events CASCADE")
+        cur.connection.commit()
+        return "success"

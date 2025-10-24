@@ -43,4 +43,3 @@ if __name__ == "__main__":
     finally:
         # Ensure DB pool is closed on exit
         db.close_pool()
-
