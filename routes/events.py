@@ -25,9 +25,6 @@ def process_dm_message(event):
         if not user:
             print(f"user not present, creating...")
             user = users.create_user(user_id)
-        print("adding response...")
-        result = add_response(user_slack_id=user_id, response=text)
-        print(f"DB result: {result}")
 
 
         # Check if there's an active event
@@ -37,7 +34,8 @@ def process_dm_message(event):
             return
 
         # Save the response to the database
-
+        print("adding response...")
+        result = add_response(user_slack_id=user_id, response=text)
        
         log.info(
             f"Saved DM response from {user_id} for event {active_event.id}: {text[:50]}...")

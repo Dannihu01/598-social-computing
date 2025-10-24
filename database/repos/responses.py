@@ -20,8 +20,6 @@ def get_event_responses(event_id: int) -> List[str]:
 
 
 def add_response(user_slack_id: str, response: str) -> Literal["success", "event_over", "database_error", "no_active_event"]:
-    print(f"FROM DB FUNC: {user_slack_id}")
-    print(f"FROM DB FUNC: {response}")
     try:
         with get_db_cursor() as cur:
             active_event = events.get_active_event()
