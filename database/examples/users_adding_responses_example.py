@@ -55,7 +55,7 @@ def main():
     except Exception as e:
         print(f"Error: {e}")
     finally:
-        delete_all_events()
+        # delete_all_events()
         close_pool()
         print("Database connection closed!")
 

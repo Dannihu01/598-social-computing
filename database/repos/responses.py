@@ -20,6 +20,8 @@ def get_event_responses(event_id: int) -> List[str]:
 
 
 def add_response(user_slack_id: str, response: str) -> Literal["success", "event_over", "database_error", "no_active_event"]:
+    print(f"FROM DB FUNC: {user_slack_id}")
+    print(f"FROM DB FUNC: {response}")
     try:
         with get_db_cursor() as cur:
             active_event = events.get_active_event()
@@ -27,7 +29,6 @@ def add_response(user_slack_id: str, response: str) -> Literal["success", "event
                 return "no_active_event"
             event_id = active_event.id
             user_id = users.get_user_by_slack_id(user_slack_id).id
-
             cur.execute(
                 "SELECT id from responses WHERE user_id=%s AND event_id=%s",
                 (user_id, event_id,)

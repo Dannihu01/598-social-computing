@@ -7,11 +7,11 @@ def create_user(slack_id: Optional[str]) -> User:
     with get_db_cursor() as cur:
         cur.execute(
             "INSERT INTO users (slack_id) VALUES (%s) RETURNING slack_id",
-            (slack_id)
+            (slack_id,)
         )
         row = cur.fetchone()
         cur.connection.commit()
-        return User(id=row[0], slack_id=row[1])
+        return "user created"
 
 
 def get_user_by_id(user_id: str) -> Optional[User]:

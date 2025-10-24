@@ -14,17 +14,21 @@ events_bp = Blueprint("events_bp", __name__, url_prefix="/slack")
 def process_dm_message(event):
     """Process direct message events"""
     try:
-        user_id = event.get("user")
+        user_id = str(event.get("user"))
+        print(f"userID: {user_id}")
         text = event.get("text", "")
         channel = event.get("channel")
-
         if not user_id or not text:
             return
-
-        # Get or create user
+             # Get or create user
         user = users.get_user_by_slack_id(user_id)
         if not user:
+            print(f"user not present, creating...")
             user = users.create_user(user_id)
+        print("adding response...")
+        result = add_response(user_slack_id=user_id, response=text)
+        print(f"DB result: {result}")
+
 
         # Check if there's an active event
         active_event = get_active_event()
@@ -34,8 +38,7 @@ def process_dm_message(event):
 
         # Save the response to the database
 
-        result = add_response(user_slack_id=user_id, response=text)
-
+       
         log.info(
             f"Saved DM response from {user_id} for event {active_event.id}: {text[:50]}...")
 
