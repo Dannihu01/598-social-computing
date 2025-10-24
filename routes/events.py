@@ -42,6 +42,8 @@ def process_dm_message(event):
 
     except Exception as e:
         log.error(f"Error processing DM message: {e}")
+        ##TODO: System notification to let user know their response is recorded
+    return jsonify({"text": f"🎉 Message recorded"})
 
 
 @events_bp.post("/events")

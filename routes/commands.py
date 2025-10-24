@@ -168,7 +168,7 @@ def slash():
             return jsonify({"text": "✅ You’re already opted in!"})
         # User not found → create
         user = users.create_user(slack_id)
-        return jsonify({"text": f"🎉 You’ve successfully opted in! (UUID: {user.uuid})"})
+        return jsonify({"text": f"🎉 You’ve successfully opted in! (UUID: {user.id})"})
     
     # ---------- /opt_out ----------
     if command == "/opt_out":
@@ -177,7 +177,7 @@ def slash():
         user = users.get_user_by_slack_id(slack_id)
         if user:
             # User found → delete
-            deleted = users.delete_user(user.uuid)
+            deleted = users.delete_user(user.id)
             if deleted:
                 return jsonify({"text": "👋 You’ve successfully opted out."})
         return jsonify({"text": "⚠️ You weren’t opted in."})
