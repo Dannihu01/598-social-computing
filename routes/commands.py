@@ -20,6 +20,7 @@ commands_bp = Blueprint("commands_bp", __name__, url_prefix="/slack")
 
 @commands_bp.post("/commands")
 def slash():
+    print("made it here")
     if not verify_slack(request):
         return "invalid signature", 401
 
@@ -32,28 +33,40 @@ def slash():
     if not response_url:
         return jsonify({"response_type": "ephemeral", "text": "Missing response_url from Slack."}), 200
 
-    # ---------- /dm ----------
+    # ---------- /dm_test ----------
     if command == "/dm_test":
+        print(f"dm_test command received - text: '{text}'")
+        log.info(f"dm_test command from user {user_id} with text: '{text}'")
+
         # users_list = users.list_users()
         # TODO: Get users from DB and do this action
         # TODO (stretch): Automatically send dms based on a criteria (webhook/automated runs)
         m = re.search(r"<@([A-Z0-9]+)(?:\|[^>]+)?>", text)
         if not m:
-            return jsonify({"text": "Usage: /dm @user your message"}), 200
+            print("No user mentioned in dm_test command")
+            return jsonify({"text": "Usage: /dm_test @user your message"}), 200
 
         target = m.group(1)
         msg = text[m.end():].strip()
+        print(f"Target user: {target}, Message: '{msg}'")
+
         if not msg:
             return jsonify({"text": "Please include a message."}), 200
 
         try:
+            print(f"Opening IM with user {target}")
             dm_channel = open_im(target)
+            print(f"DM channel opened: {dm_channel}")
+
+            print(f"Sending message to channel {dm_channel}: '{msg}'")
             chat_post_message(dm_channel, msg)
+            print("Message sent successfully")
+
             return jsonify({"text": f"DM sent to <@{target}>"}), 200
         except Exception as e:
-            print(e)
-            log.error(e)
-            return jsonify({"text": "Failed to send DM"}), 200
+            print(f"Error in dm_test: {e}")
+            log.error(f"Error in dm_test: {e}")
+            return jsonify({"text": f"Failed to send DM: {str(e)}"}), 200
 
     # ---------- /announce ----------
     # Usage: /announce @user [@user2 ...] Your announcement
@@ -116,14 +129,14 @@ def slash():
         threading.Thread(target=worker, daemon=True).start()
         return "", 200
 
-        # ---------- /Jakob's testing command ----------
+    # ---------- /Jakob's testing command ----------
     if command == "/jakob_test":
         if not text:
             return jsonify({"response_type": "ephemeral", "text": "Usage: `/ask <prompt>`"}), 200
 
         def worker():
             # user = users.create_user("U12345")
-            responses_list = responses.get_event_responses('event1')
+            responses_list = responses.get_event_responses(1)
             # message = f"<@{user_id}> asked: {text}\n\n*Gemini:* {answer}"
             try:
                 post_to_response_url(response_url, str(responses_list))
