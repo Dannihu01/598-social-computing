@@ -43,3 +43,11 @@ class Response:
 class EventMessaging:
     event_id: int
     sys_message_id: int
+
+@dataclass
+class SlackEnterprise:
+    id: int
+    enterprise_name: str
+    description: Optional[str]
+    created_at: Optional[datetime]
+    updated_at: Optional[datetime]

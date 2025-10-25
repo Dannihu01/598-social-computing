@@ -7,6 +7,7 @@ DROP TABLE IF EXISTS responses;
 DROP TABLE IF EXISTS sys_messages;
 DROP TABLE IF EXISTS events;
 DROP TABLE IF EXISTS users;
+DROP TABLE IF EXISTS slack_enterprises;
 DROP TYPE IF EXISTS sys_message_type;
 
 -- 1. ENUM Type for sys_messages.type
@@ -14,13 +15,8 @@ CREATE TYPE sys_message_type AS ENUM ('private', 'aggregated');
 
 -- 2. Users Table
 CREATE TABLE users (
-<<<<<<< HEAD
     id          SERIAL PRIMARY KEY,
     slack_id    TEXT
-=======
-    uuid        UUID PRIMARY KEY,
-    slack_id    TEXT UNIQUE
->>>>>>> bf87e32f02c0b6233996d44eea9a483cf6cf03ad
 );
 
 -- 3. Events Table (with SERIAL ID)
@@ -53,7 +49,18 @@ CREATE TABLE event_messaging (
     PRIMARY KEY (event_id, sys_message_id)
 );
 
+-- 7. Slack Enterprise Table
+CREATE TABLE slack_enterprises (
+    id              SERIAL PRIMARY KEY,
+    enterprise_name TEXT NOT NULL,
+    description     TEXT,
+    created_at      TIMESTAMPTZ DEFAULT NOW(),
+    updated_at      TIMESTAMPTZ DEFAULT NOW()
+);
+
+
 -- (Optional) Indexes for performance
 CREATE INDEX idx_responses_user_id ON responses(user_id);
 CREATE INDEX idx_responses_event_id ON responses(event_id);
 CREATE INDEX idx_event_messaging_sys_message_id ON event_messaging(sys_message_id);
+CREATE INDEX idx_slack_enterprises_name ON slack_enterprises(enterprise_name);

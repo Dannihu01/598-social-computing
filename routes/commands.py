@@ -11,9 +11,9 @@ import logging
 from flask import Blueprint, request, jsonify
 from utils.verify import verify_slack
 from utils.slack_api import post_to_response_url, open_im, chat_post_message
-from services.gemini_client import ask_gemini
+from services.gemini_client import ask_gemini, ask_gemini_structured
 
-from database.repos import responses, users
+from database.repos import responses, users, enterprises, messages
 log = logging.getLogger("slack-ask-bot")
 commands_bp = Blueprint("commands_bp", __name__, url_prefix="/slack")
 
@@ -27,6 +27,7 @@ def slash():
     command = request.form.get("command", "")
     user_id = request.form.get("user_id", "")
     channel_id = request.form.get("channel_id", "")
+    enterprise_name = request.form.get("enterprise_name","")
     text = (request.form.get("text") or "").strip()
     response_url = request.form.get("response_url")
 
@@ -128,22 +129,6 @@ def slash():
                 log.exception("Failed to post /ask response")
         threading.Thread(target=worker, daemon=True).start()
         return "", 200
-
-    # ---------- /Jakob's testing command ----------
-    if command == "/jakob_test":
-        if not text:
-            return jsonify({"response_type": "ephemeral", "text": "Usage: `/ask <prompt>`"}), 200
-
-        def worker():
-            # user = users.create_user("U12345")
-            responses_list = responses.get_event_responses(1)
-            # message = f"<@{user_id}> asked: {text}\n\n*Gemini:* {answer}"
-            try:
-                post_to_response_url(response_url, str(responses_list))
-            except Exception:
-                log.exception("Failed to post /ask response")
-        threading.Thread(target=worker, daemon=True).start()
-        return "", 200
     
      # ---------- /ask_test_emily ----------
     if command == "/ask_emily":
@@ -169,7 +154,90 @@ def slash():
         # User not found → create
         user = users.create_user(slack_id)
         return jsonify({"text": f"🎉 You’ve successfully opted in! (UUID: {user.id})"})
+
+    if command == "/generate_prompt":
+        prompt_schema = {
+            "type": "object",
+            "properties": {
+                "result": {
+                    "type": "string"
+                }
+            }
+        }
+        prompt = """You are a helpful event planning assistant that will generate a prompt that is a single, 
+        open-ended question mean't to find common interest among users in a group.
+        
+        The question generated should be:
+        - Open-ended, focused, and engaging (i.e. don't offer multiple follow-ups)
+        - Suitable for group discussion
+        - Designed to reveal common interests
+        - Easy to answer with short responses
+        - Does not ask for personal or potentiall sensative information
+
+        Your goal: Generate a single creative question that will follow the above criteria. Please refer
+        to the following groups description to help you curate the best question possible (if present):\n
+        """
+        # Get enterprise description
+        enterprise = enterprises.get_enterprise_by_name(enterprise_name)
+        if enterprise:
+            prompt += enterprise.description
+        else:
+            prompt += "No description present, please refer to the previously stated guidelines to do your best job possible."
+        
+
+        def worker():
+            log.info("Generating prompt with Gemini Structured...")
+            answer = ask_gemini_structured(prompt, prompt_schema) or "(no answer)"
+            
+            message = f"<@{user_id}> asked: {text}\n\n*Gemini:* {answer}"
+            if answer != "(no answer)":
+                messages.create_private_message(answer.get('result', 'no answer'))
+            try:
+                post_to_response_url(response_url, message)
+            except Exception:
+                log.exception("Failed to post /ask response")
+        threading.Thread(target=worker, daemon=True).start()
+        return "", 200
+
+    if command == "/set_enterprise_description":
+        def worker():
+            if not enterprises.get_enterprise_by_name(enterprise_name):\
+                enterprises.create_enterprise(enterprise_name, text)
+            else:
+                enterprises.update_enterprise(enterprise_name, text)
+            try:
+                post_to_response_url(response_url, "Description for your Slack has been updated!")
+            except Exception:
+                log.exception("Failed to post /ask response")
+        threading.Thread(target=worker, daemon=True).start()
+        return "", 200
     
+    if command == "/list_messages":
+        def worker():
+            sys_messages = messages.get_orphaned_private_messages()
+            
+            # Format the messages for display
+            if sys_messages:
+                message_text = "📝 Available prompts:\n\n"
+                for i, msg in enumerate(sys_messages, 1):
+                    message_text += f"{i}. *ID: {msg.id}* - {msg.content}\n"
+                
+                message_text += "\n💡 *How to use a prompt:*\n"
+                message_text += "• Use `/add_message_to_event <message_id> <event_id>` to associate a prompt with an event\n"
+                message_text += "• Example: `/add_message_to_event 5 12` (associates message ID 5 with event ID 12)\n"
+                message_text += "• Use `/list_events` to see available events"
+            else:
+                message_text = "📝 No available prompts found.\n\n"
+                message_text += "💡 *How to add prompts:*\n"
+                message_text += "• Use `/create_message <prompt_text>` to add a new prompt to the bank"
+
+            try:
+                post_to_response_url(response_url, message_text)
+            except Exception:
+                log.exception("Failed to post /list_messages response")
+        threading.Thread(target=worker, daemon=True).start()
+        return "", 200
+
     # ---------- /opt_out ----------
     if command == "/opt_out":
         print("inside opt out function")
@@ -186,3 +254,6 @@ def slash():
     return jsonify({"response_type": "ephemeral", "text": f"Unsupported command: {command}"}), 200
 
     # TODO: Create groups
+
+
+        
