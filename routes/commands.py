@@ -164,6 +164,10 @@ def slash():
                 }
             }
         }
+        
+        # Extract additional description from user input (everything after the command)
+        additional_description = text.strip() if text.strip() else ""
+        
         prompt = """You are a helpful event planning assistant that will generate a prompt that is a single, 
         open-ended question mean't to find common interest among users in a group.
         
@@ -177,25 +181,39 @@ def slash():
         Your goal: Generate a single creative question that will follow the above criteria. Please refer
         to the following groups description to help you curate the best question possible (if present):\n
         """
+        
         # Get enterprise description
         enterprise = enterprises.get_enterprise_by_name(enterprise_name)
-        if enterprise:
-            prompt += enterprise.description
+        if enterprise and enterprise.description:
+            prompt += f"Group context: {enterprise.description}\n\n"
         else:
-            prompt += "No description present, please refer to the previously stated guidelines to do your best job possible."
+            prompt += "No group context available.\n\n"
         
+        # Add user's additional description if provided
+        if additional_description:
+            prompt += f"Additional requirements from user: {additional_description}\n\n"
+        
+        prompt += "Please generate a single creative question based on the above information."
 
         def worker():
             log.info("Generating prompt with Gemini Structured...")
             answer = ask_gemini_structured(prompt, prompt_schema) or "(no answer)"
             
-            message = f"<@{user_id}> asked: {text}\n\n*Gemini:* {answer}"
-            if answer != "(no answer)":
-                messages.create_private_message(answer.get('result', 'no answer'))
+            # Format the response message
+            if additional_description:
+                message = f"<@{user_id}> requested: {additional_description}\n\n*Generated prompt:* {answer.get('result', 'No answer generated')}"
+            else:
+                message = f"<@{user_id}> requested a prompt generation\n\n*Generated prompt:* {answer.get('result', 'No answer generated')}"
+            
+            # Save the generated prompt to the message bank
+            if answer != "(no answer)" and answer.get('result'):
+                messages.create_private_message(answer.get('result'))
+                message += "\n\n✅ *Prompt saved to message bank!*"
+            
             try:
                 post_to_response_url(response_url, message)
             except Exception:
-                log.exception("Failed to post /ask response")
+                log.exception("Failed to post /generate_prompt response")
         threading.Thread(target=worker, daemon=True).start()
         return "", 200
 
