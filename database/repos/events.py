@@ -130,3 +130,12 @@ def delete_all_events():
         cur.execute("DELETE FROM events CASCADE")
         cur.connection.commit()
         return "success"
+
+
+def add_message_to_event(event_id: int, sys_message_id: int) -> None:
+    with get_db_cursor() as cur:
+        cur.execute(
+            "INSERT INTO event_messaging (event_id, sys_message_id) VALUES (%s, %s) ON CONFLICT DO NOTHING",
+            (event_id, sys_message_id),
+        )
+        cur.connection.commit()
