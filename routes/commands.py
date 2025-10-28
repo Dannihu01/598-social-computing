@@ -23,6 +23,8 @@ log = logging.getLogger("slack-ask-bot")
 commands_bp = Blueprint("commands_bp", __name__, url_prefix="/slack")
 
 
+
+
 @commands_bp.post("/commands")
 def slash():
     print("made it here")
@@ -307,15 +309,20 @@ def slash():
             # DM all opted-in users
             delivered = failed = 0
             for u in users_repo.list_users(limit=100000):
-                if not getattr(u, "slack_id", None):
+                print()
+                print(u)
+                slack_id = getattr(u, "slack_id", None)
+                if not slack_id:
                     continue
                 try:
-                    dm = open_im(u.slack_id)
+                    dm = open_im(slack_id)
+                    if isinstance(dm, dict) and "channel" in dm:
+                        dm = dm["channel"]["id"]
                     chat_post_message(dm, msg.content)
                     delivered += 1
-                except Exception:
+                except Exception as e:
+                    log.error(f"Failed to DM {slack_id}: {e}")
                     failed += 1
-
             return jsonify({"response_type":"ephemeral",
                             "text": f"✅ Started event {evt.id} with prompt {msg.id}. DMs sent: {delivered}, failed: {failed}"}), 200
 
