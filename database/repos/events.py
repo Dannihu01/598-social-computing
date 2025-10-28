@@ -80,6 +80,8 @@ def create_event(time_start: Optional[datetime] = None, day_duration: int = 7) -
         return "database_error"
 
 
+
+
 def delete_event(event_id: int) -> Literal["success", "event_not_found", "database_error"]:
     """
     Delete an event from the database.
@@ -96,6 +98,8 @@ def delete_event(event_id: int) -> Literal["success", "event_not_found", "databa
         with get_db_cursor() as cur:
             # First check if the event exists
             cur.execute("SELECT id FROM events WHERE id = %s", (event_id,))
+
+            
             if not cur.fetchone():
                 return "event_not_found"
 
@@ -128,6 +132,7 @@ def get_active_event() -> Optional[Event]:
 def delete_all_events():
     with get_db_cursor() as cur:
         cur.execute("DELETE FROM events CASCADE")
+        # @TODO reset event number back to 1 if you delete all of the events
         cur.connection.commit()
         return "success"
 

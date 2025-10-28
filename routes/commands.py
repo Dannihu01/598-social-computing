@@ -277,6 +277,11 @@ def slash():
 
     # inside routes/commands.py, in the POST /slack/commands handler:
 
+    if command == "/reset_event_number":
+        events_repo.reset_event_counter()
+        return jsonify({"text": "✅ Event counter reset to 1."}), 200
+
+
     # ---------- /start_event ----------
     if command == "/start_event":
     
@@ -292,7 +297,7 @@ def slash():
             if result == "event_already_active":
                 return jsonify({"response_type":"ephemeral","text":"⚠️ There is already an active event."}), 200
             if result != "success":
-                return jsonify({"response_type":"ephemeral","text":"❌ Couldn’t create event."}), 200
+                return jsonify({"response_type":"ephemeral","text":"❌ Couldn't create event."}), 200
 
             # Fetch the event we just created
             evt = events_repo.get_active_event()
@@ -305,6 +310,7 @@ def slash():
 
             # Attach prompt to event
             events_repo.add_message_to_event(evt.id, msg.id)
+
 
             # DM all opted-in users
             delivered = failed = 0
@@ -323,12 +329,15 @@ def slash():
                 except Exception as e:
                     log.error(f"Failed to DM {slack_id}: {e}")
                     failed += 1
+
+
+
             return jsonify({"response_type":"ephemeral",
                             "text": f"✅ Started event {evt.id} with prompt {msg.id}. DMs sent: {delivered}, failed: {failed}"}), 200
 
         except Exception:
             log.exception("start_event failed")
-            return jsonify({"response_type":"ephemeral","text":"❌ Couldn’t start event. Check logs."}), 200
+            return jsonify({"response_type":"ephemeral","text":"❌ Couldn't start event. Check logs."}), 200
             
 
 
