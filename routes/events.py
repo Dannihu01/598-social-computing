@@ -61,7 +61,7 @@ def slack_events():
     payload = request.json
     event = payload.get("event", {})
     event_type = event.get("type")
-    print(f"Received event: {event}")
+    # print(f"Received event: {event}")
     # Ignore bot's own messages
     if event.get("bot_id"):
         return "", 200

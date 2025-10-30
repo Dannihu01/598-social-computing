@@ -20,7 +20,6 @@ commands_bp = Blueprint("commands_bp", __name__, url_prefix="/slack")
 
 @commands_bp.post("/commands")
 def slash():
-    print("made it here")
     if not verify_slack(request):
         return "invalid signature", 401
 
