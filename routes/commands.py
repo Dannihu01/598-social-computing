@@ -194,6 +194,11 @@ def slash():
         
         prompt += "Please generate a single creative question based on the above information."
 
+        if user_id and not users.is_user_admin(user_id):
+            return jsonify({
+                "response_type": "ephemeral",
+                "text": "⚠️ You do not have permission to use this command."
+            }), 200
         def worker():
             log.info("Generating prompt with Gemini Structured...")
             answer = ask_gemini_structured(prompt, prompt_schema) or "(no answer)"
@@ -217,6 +222,11 @@ def slash():
         return "", 200
 
     if command == "/set_enterprise_description":
+        if user_id and not users.is_user_admin(user_id):
+            return jsonify({
+                "response_type": "ephemeral",
+                "text": "⚠️ You do not have permission to use this command."
+            }), 200
         def worker():
             if not enterprises.get_enterprise_by_name(enterprise_name):\
                 enterprises.create_enterprise(enterprise_name, text)
@@ -230,6 +240,11 @@ def slash():
         return "", 200
     
     if command == "/list_messages":
+        if user_id and not users.is_user_admin(user_id):
+            return jsonify({
+                "response_type": "ephemeral",
+                "text": "⚠️ You do not have permission to use this command."
+            }), 200
         def worker():
             sys_messages = messages.get_orphaned_private_messages()
             
@@ -253,7 +268,7 @@ def slash():
             except Exception:
                 log.exception("Failed to post /list_messages response")
         threading.Thread(target=worker, daemon=True).start()
-        return "", 200
+        return res if res else "", 200
 
     # ---------- /opt_out ----------
     if command == "/opt_out":
