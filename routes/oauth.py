@@ -34,7 +34,12 @@ def oauth_callback():
     data = token_response.json()
     if data.get('ok'):
         bot_token = data.get('access_token')
+        refresh_token = data.get('refresh_token')  # present if token rotation enabled
         os.environ['SLACK_BOT_TOKEN'] = bot_token
+        if refresh_token:
+            os.environ['SLACK_REFRESH_TOKEN'] = refresh_token
+        log.info("Stored Slack bot token from OAuth callback. Refresh token present: %s", bool(refresh_token))
         return data, 200
     else:
+        log.error("Slack OAuth token exchange failed: %s", data)
         return jsonify({'status': 'failure', 'error': data}), 500
