@@ -32,3 +32,36 @@ def open_im(user_id: str) -> str:
 def chat_post_message(channel: str, text: str) -> str:
     """Post as the bot (requires chat:write). Returns ts."""
     return slack_api("chat.postMessage", {"channel": channel, "text": text})["ts"]
+
+def create_channel(name: str, is_private: bool = False) -> Dict:
+    """
+    Create a new Slack channel.
+    
+    Args:
+        name: Channel name (lowercase, hyphens, max 80 chars)
+        is_private: Whether channel is private (default: False)
+        
+    Returns:
+        Channel info dict with 'id', 'name', etc.
+    """
+    result = slack_api("conversations.create", {
+        "name": name,
+        "is_private": is_private
+    })
+    return result["channel"]
+
+def invite_users_to_channel(channel_id: str, user_ids: list) -> Dict:
+    """
+    Invite multiple users to a channel.
+    
+    Args:
+        channel_id: The channel ID (C...)
+        user_ids: List of user slack_ids (U...)
+        
+    Returns:
+        API response dict
+    """
+    return slack_api("conversations.invite", {
+        "channel": channel_id,
+        "users": ",".join(user_ids)
+    })

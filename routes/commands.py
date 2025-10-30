@@ -13,7 +13,8 @@ from utils.verify import verify_slack
 from utils.slack_api import post_to_response_url, open_im, chat_post_message
 from services.gemini_client import ask_gemini, ask_gemini_structured
 
-from database.repos import responses, users, enterprises, messages
+from database.repos import responses, users, enterprises, messages, events
+from services.event_finalizer import finalize_event
 log = logging.getLogger("slack-ask-bot")
 commands_bp = Blueprint("commands_bp", __name__, url_prefix="/slack")
 
@@ -265,8 +266,86 @@ def slash():
             # User found → delete
             deleted = users.delete_user(user.id)
             if deleted:
-                return jsonify({"text": "👋 You’ve successfully opted out."})
-        return jsonify({"text": "⚠️ You weren’t opted in."})
+                return jsonify({"text": "👋 You've successfully opted out."})
+        return jsonify({"text": "⚠️ You weren't opted in."})
+
+    # ---------- /finalize_event ----------
+    if command == "/finalize_event":
+        """
+        Finalize an event by grouping users and creating channels.
+        Usage: /finalize_event [event_id]
+        - If event_id is provided, finalize that specific event
+        - If not provided, finalize the currently active event
+        """
+        def worker():
+            try:
+                # Parse event_id from text if provided
+                target_event_id = None
+                if text.strip():
+                    try:
+                        target_event_id = int(text.strip())
+                        log.info(f"Finalizing event {target_event_id} (user-specified)")
+                    except ValueError:
+                        error_msg = f"⚠️ Invalid event ID: '{text}'. Please provide a number or leave blank for active event."
+                        post_to_response_url(response_url, error_msg)
+                        return
+                
+                # If no event_id provided, get the active event
+                if target_event_id is None:
+                    active_event = events.get_active_event()
+                    if not active_event:
+                        error_msg = "⚠️ No active event found. Please specify an event ID or create an event first."
+                        post_to_response_url(response_url, error_msg)
+                        return
+                    target_event_id = active_event.id
+                    log.info(f"Finalizing active event {target_event_id}")
+                
+                # Send immediate acknowledgment
+                initial_msg = f"🔄 Finalizing event {target_event_id}... This may take a moment."
+                post_to_response_url(response_url, initial_msg)
+                
+                # Call the event finalizer
+                result = finalize_event(target_event_id)
+                
+                # Format response message
+                if result["success"]:
+                    message = f"✅ *Event {target_event_id} finalized successfully!*\n\n"
+                    message += f"📊 *Summary:*\n"
+                    message += f"• Groups created: {result['groups_created']}\n"
+                    message += f"• Channels created: {len(result['channels_created'])}\n"
+                    
+                    if result['channels_created']:
+                        message += f"\n📢 *Channels:*\n"
+                        for channel_id in result['channels_created']:
+                            message += f"• <#{channel_id}>\n"
+                    
+                    if result['errors']:
+                        message += f"\n⚠️ *Warnings ({len(result['errors'])}):*\n"
+                        for error in result['errors'][:3]:  # Show first 3 errors
+                            message += f"• {error}\n"
+                        if len(result['errors']) > 3:
+                            message += f"• ... and {len(result['errors']) - 3} more\n"
+                else:
+                    message = f"❌ *Failed to finalize event {target_event_id}*\n\n"
+                    if result['errors']:
+                        message += f"*Errors:*\n"
+                        for error in result['errors'][:5]:
+                            message += f"• {error}\n"
+                    else:
+                        message += "No groups could be created from the responses."
+                
+                post_to_response_url(response_url, message)
+                
+            except Exception as e:
+                log.error(f"Error in /finalize_event: {e}")
+                error_msg = f"❌ Unexpected error: {str(e)}"
+                try:
+                    post_to_response_url(response_url, error_msg)
+                except:
+                    log.exception("Failed to post error response")
+        
+        threading.Thread(target=worker, daemon=True).start()
+        return "", 200
 
     # Unknown command
     return jsonify({"response_type": "ephemeral", "text": f"Unsupported command: {command}"}), 200
