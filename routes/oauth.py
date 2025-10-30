@@ -2,6 +2,7 @@ import logging
 from flask import Blueprint, request, redirect, url_for, jsonify
 import requests
 from utils.verify import verify_slack
+from utils.slack_api import slack_api
 from services.thread_monitor import process_message_event, process_reaction_event
 from dotenv import load_dotenv
 import os
@@ -43,3 +44,30 @@ def oauth_callback():
     else:
         log.error("Slack OAuth token exchange failed: %s", data)
         return jsonify({'status': 'failure', 'error': data}), 500
+
+## TESTING SCRIPTS -- REMOVE FROM PRODUCTION (or comment out :))
+
+# @oauth_bp.get("/debug/force-invalid-token")
+# def force_invalid_token():
+#     os.environ['SLACK_BOT_TOKEN'] = 'bogus'
+#     return jsonify({"ok": True, "message": "Set SLACK_BOT_TOKEN to bogus for this process."}), 200
+
+
+# @oauth_bp.get("/debug/ping")
+# def debug_ping():
+#     """Trigger a Slack API call to exercise refresh logic (calls auth.test)."""
+#     try:
+#         result = slack_api("auth.test", {})
+#         return jsonify({"ok": True, "result": result}), 200
+#     except Exception as e:
+#         return jsonify({"ok": False, "error": str(e)}), 500
+
+
+# @oauth_bp.get("/debug/revoke")
+# def debug_revoke():
+#     """Revoke the current token, then a subsequent /debug/ping should refresh."""
+#     try:
+#         result = slack_api("auth.revoke", {"test": False})
+#         return jsonify({"ok": True, "result": result}), 200
+#     except Exception as e:
+#         return jsonify({"ok": False, "error": str(e)}), 500
