@@ -13,6 +13,7 @@ SLACK_CLIENT_SECRET = os.getenv("SLACK_CLIENT_SECRET")
 log = logging.getLogger("slack-ask-bot")
 oauth_bp = Blueprint("oauth_bp", __name__, url_prefix="/slack")
 
+
 @oauth_bp.get("/oauth/callback")
 def oauth_callback():
     # Slack redirects here after user approves
@@ -35,26 +36,29 @@ def oauth_callback():
     data = token_response.json()
     if data.get('ok'):
         bot_token = data.get('access_token')
-        refresh_token = data.get('refresh_token')  # present if token rotation enabled
+        # present if token rotation enabled
+        refresh_token = data.get('refresh_token')
         os.environ['SLACK_BOT_TOKEN'] = bot_token
         if refresh_token:
             os.environ['SLACK_REFRESH_TOKEN'] = refresh_token
-        log.info("Stored Slack bot token from OAuth callback. Refresh token present: %s", bool(refresh_token))
+        log.info("Stored Slack bot token from OAuth callback. Refresh token present: %s", bool(
+            refresh_token))
         return data, 200
     else:
         log.error("Slack OAuth token exchange failed: %s", data)
         return jsonify({'status': 'failure', 'error': data}), 500
 
-## TESTING SCRIPTS -- REMOVE FROM PRODUCTION (or comment out :))
+# TESTING SCRIPTS -- REMOVE FROM PRODUCTION (or comment out :))
 
-# @oauth_bp.get("/debug/force-invalid-token")
-# def force_invalid_token():
-#     os.environ['SLACK_BOT_TOKEN'] = 'bogus'
-#     return jsonify({"ok": True, "message": "Set SLACK_BOT_TOKEN to bogus for this process."}), 200
+
+@oauth_bp.get("/debug/force-invalid-token")
+def force_invalid_token():
+    os.environ['SLACK_BOT_TOKEN'] = 'bogus'
+    return jsonify({"ok": True, "message": "Set SLACK_BOT_TOKEN to bogus for this process."}), 200
 
 
 # @oauth_bp.get("/debug/ping")
-# def debug_ping():
+# def debug_ping()
 #     """Trigger a Slack API call to exercise refresh logic (calls auth.test)."""
 #     try:
 #         result = slack_api("auth.test", {})

@@ -3,6 +3,7 @@ from database.models import User
 from typing import Optional, List
 import uuid
 
+
 def create_user(slack_id: Optional[str]) -> User:
     with get_db_cursor() as cur:
         cur.execute(
@@ -71,6 +72,7 @@ def list_users(limit: int = 100) -> List[User]:
         rows = cur.fetchall()
         return [User(id=row[0], slack_id=row[1]) for row in rows]
 
+
 def is_user_admin(slack_id: str) -> bool:
     with get_db_cursor() as cur:
         cur.execute(
@@ -78,7 +80,7 @@ def is_user_admin(slack_id: str) -> bool:
             (slack_id,)
         )
         row = cur.fetchone()
-        return row[0] == "admin" if row else False
+        return row[0] == "ADMIN" if row else False
 # example usage
 # user = create_user("U12345")
 # found = get_user_by_id(str(user.id))
