@@ -10,13 +10,15 @@ DROP TABLE IF EXISTS users;
 DROP TABLE IF EXISTS slack_enterprises;
 DROP TYPE IF EXISTS sys_message_type;
 
--- 1. ENUM Type for sys_messages.type
+-- 1. ENUM Type for sys_messages.type and users.role
 CREATE TYPE sys_message_type AS ENUM ('private', 'aggregated');
+CREATE TYPE user_role_type AS ENUM ('USER', 'ADMIN');
 
 -- 2. Users Table
 CREATE TABLE users (
     id          SERIAL PRIMARY KEY,
-    slack_id    TEXT
+    slack_id    TEXT,
+    role        user_role_type
 );
 
 -- 3. Events Table (with SERIAL ID)

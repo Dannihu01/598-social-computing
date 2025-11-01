@@ -79,5 +79,13 @@ def get_db_cursor() -> Generator[psycopg2.extensions.cursor, None, None]:
 
 
 def close_pool():
-    if _db_pool is not None:
+    global _db_pool
+    if _db_pool is None:
+        return
+    try:
         _db_pool.closeall()
+    except pool.PoolError:
+        # Pool already closed; ignore to prevent noisy shutdown errors
+        pass
+    finally:
+        _db_pool = None
