@@ -17,7 +17,15 @@ def get_event_responses(event_id: int) -> List[str]:
         cur.execute(sql_script, (event_id,))
         rows = cur.fetchall()
         return rows
-
+    
+def get_event_user_ids(event_id: int) -> List[int]:
+    with get_db_cursor() as cur:
+        cur.execute(
+            "SELECT user_id FROM responses WHERE event_id = %s;",
+            (event_id,)
+        )
+        rows = cur.fetchall()
+        return [row[0] for row in rows]
 
 def add_response(user_slack_id: str, response: str) -> Literal["success", "event_over", "database_error", "no_active_event"]:
     try:

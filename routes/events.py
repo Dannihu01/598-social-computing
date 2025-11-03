@@ -13,6 +13,7 @@ events_bp = Blueprint("events_bp", __name__, url_prefix="/slack")
 
 def process_dm_message(event):
     """Process direct message events"""
+    print("Inside process_dm_message")
     try:
         user_id = str(event.get("user"))
         print(f"userID: {user_id}")
@@ -49,6 +50,8 @@ def process_dm_message(event):
 @events_bp.post("/events")
 def slack_events():
     """Handle Slack Events API webhooks"""
+
+    print("Received Slack event")
 
     # Slack sends a verification challenge on initial setup
     if request.json and request.json.get("type") == "url_verification":

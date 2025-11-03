@@ -383,21 +383,22 @@ def slash():
         # get current event and list of responders
         current_event = events.get_active_event()
         print("Current event:", current_event)
-        response_list = responses.get_event_responses(current_event.id)
-        print(f"Responses for event {current_event.id}:", response_list)
+        responder_user_ids = responses.get_event_user_ids(current_event.id)
+        print(f"Responses for event {current_event.id}:", responder_user_ids)
 
-        if not response_list or all(r[0] is None for r in response_list):
+        if not responder_user_ids:
             return jsonify({"text": f"No one responded."}), 200
 
         msg = f"Thanks for responding to our last question! Please fill out this quick survey so we can hear your thoughts: {survey_url}"
 
         success, failed = [], []
 
-        for r in response_list:
+        for r in responder_user_ids:
             try:
                 # get Slack ID for the user
-                user = users.get_user_by_id(r.user_id)
+                user = users.get_user_by_id(r)
                 slack_id = user.slack_id if hasattr(user, "slack_id") else user
+                print("slack id:", slack_id)
 
                 print(f"Opening DM with user {slack_id}")
                 dm_channel = open_im(slack_id)
