@@ -17,7 +17,7 @@ from utils.slack_api import open_im, chat_post_message
 from services.gemini_client import ask_gemini_structured
 from datetime import datetime, timezone
 
-from database.repos import users, enterprises, messages, events
+from database.repos import users, enterprises, messages, events, responses
 log = logging.getLogger("slack-ask-bot")
 commands_bp = Blueprint("commands_bp", __name__, url_prefix="/slack")
 
@@ -340,7 +340,45 @@ def slash():
             log.exception("start_event failed")
             return jsonify({"response_type":"ephemeral","text":"❌ Couldn't start event. Check logs."}), 200
             
+    if command == "/send_survey":
+        '''
+        Usage: /send_survey <survey_url>
+        '''
+        survey_url = request.form.get("text")
 
+        # get current event and list of responders
+        current_event = events.get_active_event()
+        response_list = responses.get_event_responses(current_event.id)
+
+        if not responses or all(r[0] is None for r in responses):
+            return jsonify({"text": f"No one responded."}), 200
+
+        msg = f"Thanks for responding to our last question! Please fill out this quick survey so we can hear your thoughts: {survey_url}"
+
+        success, failed = [], []
+
+        for r in response_list:
+            try:
+                # get Slack ID for the user
+                user = users.get_user_by_id(r.user_id)
+                slack_id = user.slack_id if hasattr(user, "slack_id") else user
+
+                print(f"Opening DM with user {slack_id}")
+                dm_channel = open_im(slack_id)
+                print(f"DM channel opened: {dm_channel}")
+
+                print(f"Sending message to channel {dm_channel}: '{msg}'")
+                chat_post_message(dm_channel, msg)
+                print(f"Message sent successfully to <@{slack_id}>")
+
+                success.append(slack_id)
+
+            except Exception as e:
+                log.error(f"Error sending DM to {slack_id}: {e}")
+                failed.append(slack_id)
+
+        print(f"DMs sent to {len(success)} users, failed for {len(failed)}")
+        return jsonify({"text": f"Sent survey to {len(success)} users, failed for {len(failed)}"}), 200
 
 
 
