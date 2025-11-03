@@ -249,7 +249,6 @@ def slash():
 
         def worker():
             if not enterprises.get_enterprise_by_name(enterprise_name):
-            if not enterprises.get_enterprise_by_name(enterprise_name):
                 enterprises.create_enterprise(enterprise_name, text)
             else:
                 enterprises.update_enterprise(enterprise_name, text)
@@ -373,7 +372,8 @@ def slash():
         except Exception:
             log.exception("start_event failed")
             return jsonify({"response_type":"ephemeral","text":"❌ Couldn't start event. Check logs."}), 200
-            
+    
+    # ---------- /send_survey ----------
     if command == "/send_survey":
         '''
         Usage: /send_survey <survey_url>
@@ -382,9 +382,11 @@ def slash():
 
         # get current event and list of responders
         current_event = events.get_active_event()
+        print("Current event:", current_event)
         response_list = responses.get_event_responses(current_event.id)
+        print(f"Responses for event {current_event.id}:", response_list)
 
-        if not responses or all(r[0] is None for r in responses):
+        if not response_list or all(r[0] is None for r in response_list):
             return jsonify({"text": f"No one responded."}), 200
 
         msg = f"Thanks for responding to our last question! Please fill out this quick survey so we can hear your thoughts: {survey_url}"
