@@ -6,6 +6,17 @@
 
 import sys
 import logging
+import os
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
+
+# Initialize database connection pool
+from database import db
+dsn = f"dbname={os.environ.get('DATABASE_NAME')} user={os.environ['DATABASE_USER']} password={os.environ['DATABASE_PASSWORD']} host={os.environ['DATABASE_HOST']} port={os.environ.get('DATABASE_PORT',5432)}"
+db.init_pool(dsn=dsn)
+
 from services.event_finalizer import finalize_event
 from database.repos.events import get_active_event
 
