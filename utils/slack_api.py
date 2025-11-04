@@ -1,8 +1,11 @@
 # utils/slack_api.py
 import requests, logging, os
 from typing import Dict
+from utils.slack_tokens import get_bot_token
 
 log = logging.getLogger("slack-ask-bot")
+
+log = logging.getLogger("slack-api")
 
 def post_to_response_url(response_url: str, text: str) -> None:
     """Post publicly to the invoking channel via response_url (no chat:write needed)."""
@@ -117,3 +120,34 @@ def invite_users_to_channel(channel_id: str, user_ids: list) -> Dict:
         "channel": channel_id,
         "users": ",".join(user_ids)
     })
+
+
+
+
+# SLACK_API_BASE = "https://slack.com/api"
+# TOKEN = os.getenv("SLACK_BOT_TOKEN")
+
+# def _headers():
+#     token = get_bot_token()  # short-lived xoxb from your refresh flow
+#     return {
+#         "Authorization": f"Bearer {token}",
+#         "Content-Type": "application/json; charset=utf-8"
+#     }
+
+# def open_im(user_id: str):
+#     """Open a DM channel with a user and return the channel ID."""
+#     url = f"{SLACK_API_BASE}/conversations.open"
+#     resp = requests.post(url, headers=_headers(), json={"users": user_id})
+#     data = resp.json()
+#     if not data.get("ok"):
+#         raise RuntimeError(f"Slack API error in conversations.open: {data}")
+#     return data["channel"]["id"]
+
+# def chat_post_message(channel_id: str, text: str):
+#     """Send a message to a channel (including DMs)."""
+#     url = f"{SLACK_API_BASE}/chat.postMessage"
+#     resp = requests.post(url, headers=_headers(), json={"channel": channel_id, "text": text})
+#     data = resp.json()
+#     if not data.get("ok"):
+#         raise RuntimeError(f"Slack API error in chat.postMessage: {data}")
+#     return data

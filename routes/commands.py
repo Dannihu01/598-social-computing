@@ -13,10 +13,16 @@ from utils.verify import verify_slack
 from utils.slack_api import post_to_response_url, open_im, chat_post_message
 from services.gemini_client import ask_gemini, ask_gemini_structured
 
-from database.repos import responses, users, enterprises, messages, events
+from utils.slack_api import open_im, chat_post_message
+from services.gemini_client import ask_gemini_structured
+from datetime import datetime, timezone
+
+from database.repos import users, enterprises, messages, events, responses, events
 from services.event_finalizer import finalize_event
 log = logging.getLogger("slack-ask-bot")
 commands_bp = Blueprint("commands_bp", __name__, url_prefix="/slack")
+
+
 
 
 @commands_bp.post("/commands")
@@ -165,11 +171,13 @@ def slash():
             }
         }
 
+
         # Extract additional description from user input (everything after the command)
         additional_description = text.strip() if text.strip() else ""
 
+
         prompt = """You are a helpful event planning assistant that will generate a prompt that is a single, 
-        open-ended question mean't to find common interest among users in a group.
+        open-ended question meant to find common interest among users in a group.
         
         The question generated should be:
         - Open-ended, focused, and engaging (i.e. don't offer multiple follow-ups)
@@ -182,6 +190,7 @@ def slash():
         to the following groups description to help you curate the best question possible (if present):\n
         """
 
+
         # Get enterprise description
         enterprise = enterprises.get_enterprise_by_name(enterprise_name)
         if enterprise and enterprise.description:
@@ -189,9 +198,11 @@ def slash():
         else:
             prompt += "No group context available.\n\n"
 
+
         # Add user's additional description if provided
         if additional_description:
             prompt += f"Additional requirements from user: {additional_description}\n\n"
+
 
         prompt += "Please generate a single creative question based on the above information."
 
@@ -206,16 +217,21 @@ def slash():
             answer = ask_gemini_structured(
                 prompt, prompt_schema) or "(no answer)"
 
+            answer = ask_gemini_structured(
+                prompt, prompt_schema) or "(no answer)"
+
             # Format the response message
             if additional_description:
                 message = f"<@{user_id}> requested: {additional_description}\n\n*Generated prompt:* {answer.get('result', 'No answer generated')}"
             else:
                 message = f"<@{user_id}> requested a prompt generation\n\n*Generated prompt:* {answer.get('result', 'No answer generated')}"
 
+
             # Save the generated prompt to the message bank
             if answer != "(no answer)" and answer.get('result'):
                 messages.create_private_message(answer.get('result'))
                 message += "\n\n✅ *Prompt saved to message bank!*"
+
 
             try:
                 im_channel = open_im(user_id)
@@ -246,6 +262,7 @@ def slash():
         threading.Thread(target=worker, daemon=True).start()
         return "", 200
 
+
     if command == "/list_messages":
         if user_id and not users.is_user_admin(user_id):
             return jsonify({
@@ -256,11 +273,13 @@ def slash():
         def worker():
             sys_messages = messages.get_orphaned_private_messages()
 
+
             # Format the messages for display
             if sys_messages:
                 message_text = "📝 Available prompts:\n\n"
                 for i, msg in enumerate(sys_messages, 1):
                     message_text += f"{i}. *ID: {msg.id}* - {msg.content}\n"
+
 
                 message_text += "\n💡 *How to use a prompt:*\n"
                 message_text += "• Use `/add_message_to_event <message_id> <event_id>` to associate a prompt with an event\n"
@@ -291,7 +310,116 @@ def slash():
                 return jsonify({"text": "👋 You've successfully opted out."})
         return jsonify({"text": "⚠️ You weren't opted in."})
 
-    # ---------- /finalize_event ----------
+    # inside routes/commands.py, in the POST /slack/commands handler:
+
+    if command == "/reset_event_number":
+        events.reset_event_counter()
+        return jsonify({"text": "✅ Event counter reset to 1."}), 200
+
+
+    # ---------- /start_event ----------
+    if command == "/start_event":
+    
+        try:
+        
+            # Clear existing events, then create a new one
+            events.delete_all_events()
+
+            # create new event
+            time_start = datetime.now(timezone.utc).replace(microsecond=0)
+            result = events.create_event(time_start=time_start, day_duration=1)
+
+            if result == "event_already_active":
+                return jsonify({"response_type":"ephemeral","text":"⚠️ There is already an active event."}), 200
+            if result != "success":
+                return jsonify({"response_type":"ephemeral","text":"❌ Couldn't create event."}), 200
+
+            # Fetch the event we just created
+            evt = events.get_active_event()
+
+            # Get an unused prompt 
+            unused = messages.get_orphaned_private_messages()
+            if not unused:
+                return jsonify({"response_type":"ephemeral","text":"⚠️ No unused prompts found. Add one with `/create_message <text>`."}), 200
+            msg = unused[0]
+
+            # Attach prompt to event
+            events.add_message_to_event(evt.id, msg.id)
+
+
+            # DM all opted-in users
+            delivered = failed = 0
+            for u in users.list_users(limit=100000):
+                print()
+                print(u)
+                slack_id = getattr(u, "slack_id", None)
+                if not slack_id:
+                    continue
+                try:
+                    dm = open_im(slack_id)
+                    if isinstance(dm, dict) and "channel" in dm:
+                        dm = dm["channel"]["id"]
+                    chat_post_message(dm, msg.content)
+                    delivered += 1
+                except Exception as e:
+                    log.error(f"Failed to DM {slack_id}: {e}")
+                    failed += 1
+
+
+
+            return jsonify({"response_type":"ephemeral",
+                            "text": f"✅ Started event {evt.id} with prompt {msg.id}. DMs sent: {delivered}, failed: {failed}"}), 200
+
+        except Exception:
+            log.exception("start_event failed")
+            return jsonify({"response_type":"ephemeral","text":"❌ Couldn't start event. Check logs."}), 200
+    
+    # ---------- /send_survey ----------
+    if command == "/send_survey":
+        '''
+        Usage: /send_survey <survey_url>
+        '''
+        survey_url = request.form.get("text")
+
+        # get current event and list of responders
+        current_event = events.get_active_event()
+        print("Current event:", current_event)
+        responder_user_ids = responses.get_event_user_ids(current_event.id)
+        print(f"Responses for event {current_event.id}:", responder_user_ids)
+
+        if not responder_user_ids:
+            return jsonify({"text": f"No one responded."}), 200
+
+        msg = f"Thanks for responding to our last question! Please fill out this quick survey so we can hear your thoughts: {survey_url}"
+
+        success, failed = [], []
+
+        for r in responder_user_ids:
+            try:
+                # get Slack ID for the user
+                user = users.get_user_by_id(r)
+                slack_id = user.slack_id if hasattr(user, "slack_id") else user
+                print("slack id:", slack_id)
+
+                print(f"Opening DM with user {slack_id}")
+                dm_channel = open_im(slack_id)
+                print(f"DM channel opened: {dm_channel}")
+
+                print(f"Sending message to channel {dm_channel}: '{msg}'")
+                chat_post_message(dm_channel, msg)
+                print(f"Message sent successfully to <@{slack_id}>")
+
+                success.append(slack_id)
+
+            except Exception as e:
+                log.error(f"Error sending DM to {slack_id}: {e}")
+                failed.append(slack_id)
+
+        print(f"DMs sent to {len(success)} users, failed for {len(failed)}")
+        return jsonify({"text": f"Sent survey to {len(success)} users, failed for {len(failed)}"}), 200
+
+
+   # ---------- /finalize_event ----------
     if command == "/finalize_event":
         """
         Finalize an event by grouping users and creating channels.

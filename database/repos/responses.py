@@ -20,7 +20,15 @@ def get_event_responses(event_id: int) -> List[str]:
         cur.execute(sql_script, (event_id,))
         rows = cur.fetchall()
         return rows
-
+    
+def get_event_user_ids(event_id: int) -> List[int]:
+    with get_db_cursor() as cur:
+        cur.execute(
+            "SELECT user_id FROM responses WHERE event_id = %s;",
+            (event_id,)
+        )
+        rows = cur.fetchall()
+        return [row[0] for row in rows]
 
 def get_responses_with_users(event_id: int) -> List[Tuple[str, str]]:
     """
