@@ -15,7 +15,7 @@ from services.gemini_client import ask_gemini, ask_gemini_structured
 
 from utils.slack_api import open_im, chat_post_message
 from services.gemini_client import ask_gemini_structured
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 from database.repos import users, enterprises, messages, events, responses, events
 from services.event_finalizer import finalize_event
@@ -319,15 +319,36 @@ def slash():
 
     # ---------- /start_event ----------
     if command == "/start_event":
-    
+        """
+        Usage: /start_event [duration_in_minutes]
+        Examples:
+            /start_event        (default: 60 minutes = 1 hour)
+            /start_event 30     (30 minutes)
+            /start_event 120    (2 hours)
+        """
         try:
+            # Parse duration from text (default: 60 minutes)
+            duration_minutes = 60
+            if text.strip():
+                try:
+                    duration_minutes = int(text.strip())
+                    if duration_minutes <= 0:
+                        return jsonify({
+                            "response_type": "ephemeral",
+                            "text": "⚠️ Duration must be a positive number of minutes."
+                        }), 200
+                except ValueError:
+                    return jsonify({
+                        "response_type": "ephemeral",
+                        "text": "⚠️ Invalid duration. Usage: `/start_event [duration_in_minutes]`\nExample: `/start_event 30` for 30 minutes"
+                    }), 200
         
             # Clear existing events, then create a new one
             events.delete_all_events()
 
             # create new event
             time_start = datetime.now(timezone.utc).replace(microsecond=0)
-            result = events.create_event(time_start=time_start, day_duration=1)
+            result = events.create_event(time_start=time_start, duration_minutes=duration_minutes)
 
             if result == "event_already_active":
                 return jsonify({"response_type":"ephemeral","text":"⚠️ There is already an active event."}), 200
@@ -346,6 +367,26 @@ def slash():
             # Attach prompt to event
             events.add_message_to_event(evt.id, msg.id)
 
+            # Calculate end time for DM message
+            end_time = time_start + timedelta(minutes=duration_minutes)
+            
+            # Format duration for user-friendly display
+            if duration_minutes < 60:
+                time_remaining = f"{duration_minutes} minutes"
+            elif duration_minutes == 60:
+                time_remaining = "1 hour"
+            else:
+                hours = duration_minutes // 60
+                mins = duration_minutes % 60
+                if mins > 0:
+                    time_remaining = f"{hours} hour{'s' if hours > 1 else ''} and {mins} minute{'s' if mins > 1 else ''}"
+                else:
+                    time_remaining = f"{hours} hour{'s' if hours > 1 else ''}"
+            
+            # Create the full message with prompt and time information
+            dm_message = f"{msg.content}\n\n" \
+                        f"⏰ *Time to respond:* {time_remaining}\n" \
+                        f"📅 *Response deadline:* {end_time.strftime('%I:%M %p %Z, %b %d')}"
 
             # DM all opted-in users
             delivered = failed = 0
@@ -359,16 +400,24 @@ def slash():
                     dm = open_im(slack_id)
                     if isinstance(dm, dict) and "channel" in dm:
                         dm = dm["channel"]["id"]
-                    chat_post_message(dm, msg.content)
+                    chat_post_message(dm, dm_message)
                     delivered += 1
                 except Exception as e:
                     log.error(f"Failed to DM {slack_id}: {e}")
                     failed += 1
 
-
+            # Format duration for admin confirmation display
+            duration_display = f"{duration_minutes} minutes"
+            if duration_minutes >= 60:
+                hours = duration_minutes // 60
+                mins = duration_minutes % 60
+                duration_display = f"{hours}h {mins}m" if mins > 0 else f"{hours}h"
 
             return jsonify({"response_type":"ephemeral",
-                            "text": f"✅ Started event {evt.id} with prompt {msg.id}. DMs sent: {delivered}, failed: {failed}"}), 200
+                            "text": f"✅ Started event {evt.id} with prompt {msg.id}\n"
+                                   f"⏱️ Duration: {duration_display}\n"
+                                   f"📅 Ends at: {end_time.strftime('%Y-%m-%d %H:%M:%S %Z')}\n"
+                                   f"📨 DMs sent: {delivered}, failed: {failed}"}), 200
 
         except Exception:
             log.exception("start_event failed")

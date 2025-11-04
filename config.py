@@ -21,3 +21,7 @@ SLACK_BOT_TOKEN = os.environ.get(
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
 GEMINI_USE_REST = os.environ.get("GEMINI_USE_REST", "0") == "1"
+
+# Event Scheduler
+# How often to check for events to finalize (in minutes)
+EVENT_FINALIZATION_CHECK_INTERVAL = int(os.environ.get("EVENT_FINALIZATION_CHECK_INTERVAL", 5))

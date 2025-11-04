@@ -22,33 +22,32 @@ def get_event_responses(event_id: int) -> List[str]:
 def is_event_over(event_id: int) -> bool:
     with get_db_cursor() as cur:
         cur.execute(
-            "SELECT time_start, day_duration FROM events WHERE id = %s",
+            "SELECT time_start, duration_minutes FROM events WHERE id = %s",
             (event_id,)
         )
         row = cur.fetchone()
         if not row:
             return False  # Event doesn't exist
 
-        time_start, day_duration = row
-        if not time_start or not day_duration:
+        time_start, duration_minutes = row
+        if not time_start or not duration_minutes:
             return False  # Event doesn't have start time or duration
 
-        # Calculate end time: start time + duration in days
-        from datetime import datetime, timedelta
-        end_time = time_start + timedelta(days=day_duration)
+        # Calculate end time: start time + duration in minutes
+        end_time = time_start + timedelta(minutes=duration_minutes)
         current_time = datetime.now(
             time_start.tzinfo) if time_start.tzinfo else datetime.now()
 
         return current_time > end_time
 
 
-def create_event(time_start: Optional[datetime] = None, day_duration: int = 7) -> Literal["success", "database_error", "event_already_active"]:
+def create_event(time_start: Optional[datetime] = None, duration_minutes: int = 60) -> Literal["success", "database_error", "event_already_active"]:
     """
     Create a new event in the database.
 
     Args:
         time_start: When the event starts (defaults to now if None)
-        day_duration: How many days the event lasts (defaults to 7)
+        duration_minutes: How many minutes the event lasts (defaults to 60 = 1 hour)
 
     Returns:
         "success" if event was created successfully
@@ -63,16 +62,16 @@ def create_event(time_start: Optional[datetime] = None, day_duration: int = 7) -
             if get_active_event():
                 return "event_already_active"
             cur.execute(
-                "INSERT INTO events (time_start, day_duration) VALUES (%s, %s) RETURNING id",
-                (time_start, day_duration)
+                "INSERT INTO events (time_start, duration_minutes) VALUES (%s, %s) RETURNING id",
+                (time_start, duration_minutes)
             )
             event_id = cur.fetchone()[0]
             cur.connection.commit()
 
             print(f"Event created successfully with ID: {event_id}")
             print(f"Start time: {time_start}")
-            print(f"Duration: {day_duration} days")
-            print(f"End time: {time_start + timedelta(days=day_duration)}")
+            print(f"Duration: {duration_minutes} minutes")
+            print(f"End time: {time_start + timedelta(minutes=duration_minutes)}")
 
             return "success"
     except Exception as e:
@@ -122,11 +121,63 @@ def delete_event(event_id: int) -> Literal["success", "event_not_found", "databa
 
 def get_active_event() -> Optional[Event]:
     with get_db_cursor() as cur:
-        cur.execute("SELECT id, time_start, day_duration FROM events WHERE time_start <= NOW() AND time_start + INTERVAL '1 day' * day_duration >= NOW() ORDER BY time_start ASC LIMIT 1")
+        cur.execute("SELECT id, time_start, duration_minutes, is_finalized FROM events WHERE time_start <= NOW() AND time_start + INTERVAL '1 minute' * duration_minutes >= NOW() ORDER BY time_start ASC LIMIT 1")
         row = cur.fetchone()
         if row:
-            return Event(id=row[0], time_start=row[1], day_duration=row[2])
+            return Event(id=row[0], time_start=row[1], duration_minutes=row[2], is_finalized=row[3])
         return None
+
+
+def get_unfinalized_ended_events() -> List[Event]:
+    """
+    Get all events that have ended but haven't been finalized yet.
+    This is used by the scheduler to find events ready for auto-finalization.
+    
+    Returns:
+        List of Event objects that are ended but not finalized
+    """
+    with get_db_cursor() as cur:
+        cur.execute("""
+            SELECT id, time_start, duration_minutes, is_finalized 
+            FROM events 
+            WHERE is_finalized = 0
+            AND time_start + INTERVAL '1 minute' * duration_minutes < NOW()
+            ORDER BY time_start ASC
+        """)
+        rows = cur.fetchall()
+        return [Event(id=row[0], time_start=row[1], duration_minutes=row[2], is_finalized=row[3]) for row in rows]
+
+
+def mark_event_finalized(event_id: int) -> Literal["success", "event_not_found", "database_error"]:
+    """
+    Mark an event as finalized after auto-finalization completes.
+    
+    Args:
+        event_id: The ID of the event to mark as finalized
+        
+    Returns:
+        "success" if event was marked successfully
+        "event_not_found" if the event doesn't exist
+        "database_error" if there was a database error
+    """
+    try:
+        with get_db_cursor() as cur:
+            cur.execute(
+                "UPDATE events SET is_finalized = 1 WHERE id = %s",
+                (event_id,)
+            )
+            rows_updated = cur.rowcount
+            cur.connection.commit()
+            
+            if rows_updated > 0:
+                print(f"Event {event_id} marked as finalized")
+                return "success"
+            else:
+                return "event_not_found"
+                
+    except Exception as e:
+        print(f"Database error in mark_event_finalized: {e}")
+        return "database_error"
 
 
 def delete_all_events():

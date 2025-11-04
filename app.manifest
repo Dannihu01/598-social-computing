@@ -1,113 +1,94 @@
 {
     "display_information": {
-        "name": "598 test bot"
+        "name": "598 Social Computing Bot"
     },
     "features": {
         "app_home": {
             "home_tab_enabled": true,
-            "messages_tab_enabled": true,
+            "messages_tab_enabled": false,
             "messages_tab_read_only_enabled": false
         },
         "bot_user": {
-            "display_name": "598 Test App",
+            "display_name": "598 Social Computing Bot",
             "always_online": true
         },
         "slash_commands": [
             {
-                "command": "/ask_test_danni",
-                "url": "https://unbilious-toni-arousedly.ngrok-free.dev/slack/commands",
+                "command": "/ask",
+                "url": "https://five98-social-computing-bot.onrender.com/slack/commands",
                 "description": "test?",
                 "should_escape": false
             },
             {
-                "command": "/dm_test",
-                "url": "https://lexicographic-shanika-tightknit.ngrok-free.dev/slack/commands",
-                "description": "tries to dm a user",
-                "should_escape": true
-            },
-            {
-                "command": "/ask_rayhan",
-                "url": "https://predark-justly-johan.ngrok-free.dev/slack/commands",
-                "description": "Rayhan Testing",
-                "should_escape": false
-            },
-            {
-                "command": "/ask_emily",
-                "url": "https://subramose-blurredly-hubert.ngrok-free.dev/slack/commands",
-                "description": "Ask Gemini (emily)",
-                "should_escape": false
-            },
-            {
                 "command": "/mention_list",
-                "url": "https://unbilious-toni-arousedly.ngrok-free.dev/slack/commands",
+                "url": "https://five98-social-computing-bot.onrender.com/slack/commands",
                 "description": "mentions a group of people in a specific channel",
                 "should_escape": false
             },
             {
                 "command": "/generate_prompt",
-                "url": "https://unbilious-toni-arousedly.ngrok-free.dev/slack/commands",
+                "url": "https://five98-social-computing-bot.onrender.com/slack/commands",
                 "description": "Generates a prompt",
                 "should_escape": false
             },
             {
                 "command": "/set_enterprise_description",
-                "url": "https://lexicographic-shanika-tightknit.ngrok-free.dev/slack/commands",
+                "url": "https://five98-social-computing-bot.onrender.com/slack/commands",
                 "description": "Sets/updates a Slack's description for prompt gen",
                 "should_escape": false
             },
             {
                 "command": "/list_messages",
-                "url": "https://lexicographic-shanika-tightknit.ngrok-free.dev/slack/commands",
+                "url": "https://five98-social-computing-bot.onrender.com/slack/commands",
                 "description": "Sets/updates a Slack's description for prompt gen",
                 "should_escape": false
             },
             {
                 "command": "/opt_in",
-                "url": "https://subramose-blurredly-hubert.ngrok-free.dev/slack/commands",
+                "url": "https://five98-social-computing-bot.onrender.com/slack/commands",
                 "description": "Add user's slack_id to the user table",
                 "should_escape": false
             },
             {
                 "command": "/opt_out",
-                "url": "https://subramose-blurredly-hubert.ngrok-free.dev/slack/commands",
+                "url": "https://five98-social-computing-bot.onrender.com/slack/commands",
                 "description": "Remove user's slack_id from the users table",
                 "should_escape": false
             },
             {
                 "command": "/start_event",
-                "url": "https://subramose-blurredly-hubert.ngrok-free.dev/slack/commands",
-                "description": "starts event sequence",
+                "url": "https://five98-social-computing-bot.onrender.com/slack/commands",
+                "description": "Start an event and send prompts to all opted-in users",
+                "usage_hint": "[duration_in_minutes] (default: 60)",
                 "should_escape": false
             },
             {
                 "command": "/reset_event_number",
-                "url": "https://unbilious-toni-arousedly.ngrok-free.dev/slack/commands",
+                "url": "https://five98-social-computing-bot.onrender.com/slack/commands",
                 "description": "resets event number back to 1",
                 "should_escape": false
             },
             {
                 "command": "/send_survey",
-                "url": "https://subramose-blurredly-hubert.ngrok-free.dev/slack/commands",
+                "url": "https://five98-social-computing-bot.onrender.com/slack/commands",
                 "description": "Send the survey link to all users who responded to the current event",
-                "usage_hint": "<survey_url>",
                 "should_escape": false
             },
             {
                 "command": "/finalize_event",
-                "url": "https://predark-justly-johan.ngrok-free.dev/slack/commands",
+                "url": "https://five98-social-computing-bot.onrender.com/slack/commands",
                 "description": "Finalize event by grouping users and creating channels",
-                "usage_hint": "[event_id] or simply keep empty",
                 "should_escape": false
             }
         ]
     },
     "oauth_config": {
-        "redirect_urls": [
-            "https://predark-justly-johan.ngrok-free.dev/slack/oauth/callback",
-            "https://lexicographic-shanika-tightknit.ngrok-free.dev/slack/oauth/callback"
-        ],
         "scopes": {
             "bot": [
+                "channels:read",
+                "chat:write",
+                "commands",
+                "bookmarks:read",
                 "bookmarks:write",
                 "channels:history",
                 "channels:manage",
@@ -120,17 +101,17 @@
                 "im:write",
                 "incoming-webhook",
                 "mpim:write",
+                "mpim:history",
+                "mpim:read",
                 "mpim:write.topic",
                 "reactions:read",
-                "users:read",
-                "chat:write",
-                "chat:write.public"
+                "users:read"
             ]
         }
     },
     "settings": {
         "event_subscriptions": {
-            "request_url": "https://lexicographic-shanika-tightknit.ngrok-free.dev/slack/events",
+            "request_url": "https://five98-social-computing-bot.onrender.com/slack/events",
             "bot_events": [
                 "message.channels",
                 "message.groups",
@@ -140,6 +121,6 @@
         },
         "org_deploy_enabled": false,
         "socket_mode_enabled": false,
-        "token_rotation_enabled": true
+        "token_rotation_enabled": false
     }
 }
