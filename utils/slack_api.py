@@ -5,6 +5,8 @@ from utils.slack_tokens import get_bot_token
 
 log = logging.getLogger("slack-ask-bot")
 
+log = logging.getLogger("slack-api")
+
 def post_to_response_url(response_url: str, text: str) -> None:
     """Post publicly to the invoking channel via response_url (no chat:write needed)."""
     r = requests.post(response_url, json={"response_type": "in_channel", "text": text}, timeout=15)
@@ -86,34 +88,66 @@ def chat_post_message(channel: str, text: str) -> str:
     """Post as the bot (requires chat:write). Returns ts."""
     return slack_api("chat.postMessage", {"channel": channel, "text": text})["ts"]
 
+def create_channel(name: str, is_private: bool = False) -> Dict:
+    """
+    Create a new Slack channel.
+    
+    Args:
+        name: Channel name (lowercase, hyphens, max 80 chars)
+        is_private: Whether channel is private (default: False)
+        
+    Returns:
+        Channel info dict with 'id', 'name', etc.
+    """
+    result = slack_api("conversations.create", {
+        "name": name,
+        "is_private": is_private
+    })
+    return result["channel"]
+
+def invite_users_to_channel(channel_id: str, user_ids: list) -> Dict:
+    """
+    Invite multiple users to a channel.
+    
+    Args:
+        channel_id: The channel ID (C...)
+        user_ids: List of user slack_ids (U...)
+        
+    Returns:
+        API response dict
+    """
+    return slack_api("conversations.invite", {
+        "channel": channel_id,
+        "users": ",".join(user_ids)
+    })
 
 
-log = logging.getLogger("slack-api")
 
-SLACK_API_BASE = "https://slack.com/api"
-TOKEN = os.getenv("SLACK_BOT_TOKEN")
 
-def _headers():
-    token = get_bot_token()  # short-lived xoxb from your refresh flow
-    return {
-        "Authorization": f"Bearer {token}",
-        "Content-Type": "application/json; charset=utf-8"
-    }
+# SLACK_API_BASE = "https://slack.com/api"
+# TOKEN = os.getenv("SLACK_BOT_TOKEN")
 
-def open_im(user_id: str):
-    """Open a DM channel with a user and return the channel ID."""
-    url = f"{SLACK_API_BASE}/conversations.open"
-    resp = requests.post(url, headers=_headers(), json={"users": user_id})
-    data = resp.json()
-    if not data.get("ok"):
-        raise RuntimeError(f"Slack API error in conversations.open: {data}")
-    return data["channel"]["id"]
+# def _headers():
+#     token = get_bot_token()  # short-lived xoxb from your refresh flow
+#     return {
+#         "Authorization": f"Bearer {token}",
+#         "Content-Type": "application/json; charset=utf-8"
+#     }
 
-def chat_post_message(channel_id: str, text: str):
-    """Send a message to a channel (including DMs)."""
-    url = f"{SLACK_API_BASE}/chat.postMessage"
-    resp = requests.post(url, headers=_headers(), json={"channel": channel_id, "text": text})
-    data = resp.json()
-    if not data.get("ok"):
-        raise RuntimeError(f"Slack API error in chat.postMessage: {data}")
-    return data
+# def open_im(user_id: str):
+#     """Open a DM channel with a user and return the channel ID."""
+#     url = f"{SLACK_API_BASE}/conversations.open"
+#     resp = requests.post(url, headers=_headers(), json={"users": user_id})
+#     data = resp.json()
+#     if not data.get("ok"):
+#         raise RuntimeError(f"Slack API error in conversations.open: {data}")
+#     return data["channel"]["id"]
+
+# def chat_post_message(channel_id: str, text: str):
+#     """Send a message to a channel (including DMs)."""
+#     url = f"{SLACK_API_BASE}/chat.postMessage"
+#     resp = requests.post(url, headers=_headers(), json={"channel": channel_id, "text": text})
+#     data = resp.json()
+#     if not data.get("ok"):
+#         raise RuntimeError(f"Slack API error in chat.postMessage: {data}")
+#     return data

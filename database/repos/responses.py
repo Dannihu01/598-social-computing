@@ -3,11 +3,14 @@ from database.db import get_db_cursor
 from database.repos import events
 from database.repos import users
 from pathlib import Path
-from typing import Optional, List, Literal
+from typing import Optional, List, Literal, Tuple
 
 
 SQL_PATH = os.path.join(
     Path(__file__).resolve().parents[1], "DML", "get_event_responses.sql")
+
+SQL_PATH_WITH_USERS = os.path.join(
+    Path(__file__).resolve().parents[1], "DML", "get_responses_with_users.sql")
 
 
 def get_event_responses(event_id: int) -> List[str]:
@@ -26,6 +29,24 @@ def get_event_user_ids(event_id: int) -> List[int]:
         )
         rows = cur.fetchall()
         return [row[0] for row in rows]
+
+def get_responses_with_users(event_id: int) -> List[Tuple[str, str]]:
+    """
+    Get all responses for an event with user slack_ids.
+    
+    Args:
+        event_id: The event ID
+        
+    Returns:
+        List of tuples: [(slack_id, response_text), ...]
+    """
+    with get_db_cursor() as cur:
+        with open(SQL_PATH_WITH_USERS, 'r', encoding='utf-8') as f:
+            sql_script = f.read()
+        cur.execute(sql_script, (event_id,))
+        rows = cur.fetchall()
+        return rows
+
 
 def add_response(user_slack_id: str, response: str) -> Literal["success", "event_over", "database_error", "no_active_event"]:
     try:
