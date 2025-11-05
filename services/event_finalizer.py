@@ -16,10 +16,10 @@ log = logging.getLogger("event-finalizer")
 def finalize_event(event_id: int) -> Dict:
     """
     Complete an event by grouping users, creating channels, and inviting participants.
-    
+
     Args:
         event_id: The event to finalize
-        
+
     Returns:
         Dict with summary: {
             "success": bool,
@@ -34,62 +34,69 @@ def finalize_event(event_id: int) -> Dict:
         "channels_created": [],
         "errors": []
     }
-    
+
     try:
         log.info(f"Starting finalization for event {event_id}")
-        
+
         # Step 1: Classify users into groups
         groups = classify_user_responses(event_id)
-        
+
         if not groups:
-            summary["errors"].append("No valid groups found from classification")
+            summary["errors"].append(
+                "No valid groups found from classification")
             log.warning(f"Event {event_id}: No valid groups to process")
             return summary
-        
+
         summary["groups_created"] = len(groups)
         log.info(f"Event {event_id}: Processing {len(groups)} groups")
-        
+
         # Get all responses for this event
         all_responses = get_responses_with_users(event_id)
         responses_dict = {slack_id: entry for slack_id, entry in all_responses}
-        
+
         # Step 2 & 3: For each group, generate metadata and create channel
         for i, group_slack_ids in enumerate(groups, 1):
             try:
-                log.info(f"Processing group {i}/{len(groups)} with {len(group_slack_ids)} users")
-                
+                log.info(
+                    f"Processing group {i}/{len(groups)} with {len(group_slack_ids)} users")
+
                 # Get responses for this specific group
                 user_responses = [
                     (slack_id, responses_dict.get(slack_id, ""))
                     for slack_id in group_slack_ids
                     if slack_id in responses_dict
                 ]
-                
+
                 if not user_responses:
-                    summary["errors"].append(f"Group {i}: No responses found for users")
+                    summary["errors"].append(
+                        f"Group {i}: No responses found for users")
                     continue
-                
+
                 # Generate channel metadata
                 metadata = generate_channel_metadata(user_responses)
                 if not metadata:
-                    summary["errors"].append(f"Group {i}: Failed to generate metadata")
+                    summary["errors"].append(
+                        f"Group {i}: Failed to generate metadata")
                     continue
-                
+
                 # Create unique channel name with event ID
                 channel_name = f"{metadata['channel_name']}-event{event_id}"
-                
+
                 # Create Slack channel
                 try:
-                    channel_info = create_channel(channel_name, is_private=False)
+                    channel_info = create_channel(
+                        channel_name, is_private=False)
                     channel_id = channel_info["id"]
                     log.info(f"Created channel {channel_id} ({channel_name})")
-                    
+
                     # Invite users to channel
                     invite_users_to_channel(channel_id, group_slack_ids)
-                    log.info(f"Invited {len(group_slack_ids)} users to {channel_id}")
-                    
+                    log.info(
+                        f"Invited {len(group_slack_ids)} users to {channel_id}")
+
                     # Post welcome message
-                    mentions = " ".join([f"<@{sid}>" for sid in group_slack_ids])
+                    mentions = " ".join(
+                        [f"<@{sid}>" for sid in group_slack_ids])
                     full_message = (
                         f"👋 {mentions}\n\n"
                         f"{metadata['initial_message']}\n\n"
@@ -97,30 +104,74 @@ def finalize_event(event_id: int) -> Dict:
                     )
                     chat_post_message(channel_id, full_message)
                     log.info(f"Posted welcome message to {channel_id}")
-                    
-                    summary["channels_created"].append(channel_id)
-                    
+
+                    summary["channels_created"].append({
+                        "id": channel_id,
+                        "summary": metadata.get("initial_message", "")
+                    })
+
                 except Exception as e:
                     error_msg = f"Group {i}: Failed to create/setup channel - {str(e)}"
                     summary["errors"].append(error_msg)
                     log.error(error_msg)
-            
+
             except Exception as e:
                 error_msg = f"Group {i}: Unexpected error - {str(e)}"
                 summary["errors"].append(error_msg)
                 log.error(error_msg)
-        
+
         # Mark as successful if at least one channel was created
         summary["success"] = len(summary["channels_created"]) > 0
-        
+
         log.info(f"Event {event_id} finalization complete: "
-                f"{len(summary['channels_created'])} channels created, "
-                f"{len(summary['errors'])} errors")
-        
+                 f"{len(summary['channels_created'])} channels created, "
+                 f"{len(summary['errors'])} errors")
+
+        # Step 4: Send public announcement
+        if summary["channels_created"]:
+            public_channel_id = "C0NPLD64Q"  # ID of CSEG #random channel
+            announcement_result = announce_to_public(public_channel_id, summary["channels_created"])
+            if not announcement_result["success"]:
+                summary["errors"].append(announcement_result["error"])  
+
         return summary
-    
+
     except Exception as e:
         error_msg = f"Critical error finalizing event {event_id}: {str(e)}"
         summary["errors"].append(error_msg)
         log.error(error_msg)
         return summary
+
+
+def announce_to_public(public_channel: str, created_channels: List[Dict]):
+    '''
+    Sends message to public_channel, inviting users to join channels in created_channels
+    Args: 
+        public_channel: ID of public channel that announcement should be sent to
+        created_channels: list of {"id": str, "summary": str}
+    Returns:
+        Dict: {"success": bool, "error": None/str}
+    '''
+    try:
+        announcement_lines = [
+            f"🎉 *Thank you to everyone who answered the last question!*",
+            f"{len(created_channels)} new discussion channels have just been created — join one below and meet new people!"
+        ]
+
+        for c in created_channels:
+            channel_link = f"<#{c['id']}>"
+            short_desc = (c['summary'] or "").strip()
+            if short_desc:
+                announcement_lines.append(f"• {channel_link}: {short_desc}")
+            else:
+                announcement_lines.append(f"• {channel_link}")
+
+        announcement_text = "\n".join(announcement_lines)
+        chat_post_message(public_channel, announcement_text)
+        log.info(f"Posted public announcement in channel {public_channel}")
+
+        return {"success": True, "error": None}
+    
+    except Exception as e:
+        error_msg = f"Failed to send public announcement to channel {public_channel}: {str(e)}"
+        return {"success": False, "error": error_msg}
