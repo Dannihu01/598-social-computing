@@ -123,16 +123,16 @@ def finalize_event(event_id: int) -> Dict:
         # Mark as successful if at least one channel was created
         summary["success"] = len(summary["channels_created"]) > 0
 
-        log.info(f"Event {event_id} finalization complete: "
-                 f"{len(summary['channels_created'])} channels created, "
-                 f"{len(summary['errors'])} errors")
-
         # Step 4: Send public announcement
         if summary["channels_created"]:
-            public_channel_id = "C0NPLD64Q"  # ID of CSEG #random channel
+            public_channel_id = "C09H47QG5DG"  # ID of sandbox #random channel
             announcement_result = announce_to_public(public_channel_id, summary["channels_created"])
             if not announcement_result["success"]:
                 summary["errors"].append(announcement_result["error"])  
+
+        log.info(f"Event {event_id} finalization complete: "
+                 f"{len(summary['channels_created'])} channels created, "
+                 f"{len(summary['errors'])} errors")
 
         return summary
 
