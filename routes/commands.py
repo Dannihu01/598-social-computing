@@ -358,11 +358,11 @@ def slash():
             # Fetch the event we just created
             evt = events.get_active_event()
 
-            # Get an unused prompt 
-            unused = messages.get_orphaned_private_messages()
-            if not unused:
-                return jsonify({"response_type":"ephemeral","text":"⚠️ No unused prompts found. Add one with `/create_message <text>`."}), 200
-            msg = unused[0]
+            # Get an unused prompt (not used in any unfinalized events)
+            unused_msgs = messages.get_unused_private_messages()
+            if not unused_msgs:
+                return jsonify({"response_type":"ephemeral","text":"⚠️ No unused prompts found. All prompts are currently in use, or add more with `/create_message <text>`."}), 200
+            msg = unused_msgs[0]  # Get first unused prompt (already randomized in query)
 
             # Attach prompt to event
             events.add_message_to_event(evt.id, msg.id)

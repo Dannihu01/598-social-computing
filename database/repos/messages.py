@@ -260,6 +260,36 @@ def get_orphaned_private_messages() -> List[SysMessage]:
             for row in rows
         ]
 
+def get_unused_private_messages() -> List[SysMessage]:
+    """
+    Get private messages that haven't been used in any unfinalized events.
+    This allows reuse of prompts from finalized events while preventing 
+    duplicate prompts in active/pending events.
+    """
+    with get_db_cursor() as cur:
+        cur.execute(
+            """SELECT DISTINCT sm.id, sm.type, sm.content 
+               FROM sys_messages sm 
+               WHERE sm.type = %s 
+               AND sm.id NOT IN (
+                   SELECT em.sys_message_id 
+                   FROM event_messaging em 
+                   JOIN events e ON em.event_id = e.id 
+                   WHERE e.is_finalized = 0
+               )
+               ORDER BY RANDOM()""",
+            (SysMessageType.private,)
+        )
+        rows = cur.fetchall()
+        return [
+            SysMessage(
+                id=row[0],
+                type=SysMessageType(row[1]),
+                content=row[2]
+            )
+            for row in rows
+        ]
+
 def associate_sys_message_with_event(event_id: int, sys_message_id: int) -> bool:
     """Associate a sys message with an event."""
     with get_db_cursor() as cur:
