@@ -125,7 +125,7 @@ def finalize_event(event_id: int) -> Dict:
 
         # Step 4: Send public announcement
         if summary["channels_created"]:
-            public_channel_id = "C09H47QG5DG"  # ID of sandbox #random channel
+            public_channel_id = "C09HC5S2NNM"  # 598-test-channel
             announcement_result = announce_to_public(public_channel_id, summary["channels_created"])
             if not announcement_result["success"]:
                 summary["errors"].append(announcement_result["error"])  
