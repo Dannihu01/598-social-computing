@@ -268,7 +268,7 @@ def get_unused_private_messages() -> List[SysMessage]:
     """
     with get_db_cursor() as cur:
         cur.execute(
-            """SELECT DISTINCT sm.id, sm.type, sm.content 
+            """SELECT sm.id, sm.type, sm.content 
                FROM sys_messages sm 
                WHERE sm.type = %s 
                AND sm.id NOT IN (
