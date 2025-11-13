@@ -33,9 +33,11 @@ def slash():
     command = request.form.get("command", "")
     user_id = request.form.get("user_id", "")
     channel_id = request.form.get("channel_id", "")
-    enterprise_name = request.form.get("enterprise_name", "")
+    enterprise_name = request.form.get("enterprise_name", None) or request.form.get("team_domain", "default")
     text = (request.form.get("text") or "").strip()
     response_url = request.form.get("response_url")
+
+    print(f"FORM NAME:\n{str(request.form)}\n----------")
 
     if not response_url:
         return jsonify({"response_type": "ephemeral", "text": "Missing response_url from Slack."}), 200
@@ -250,6 +252,7 @@ def slash():
         return "", 200
 
     if command == "/set_enterprise_description":
+        print(f"ENTERPRISE NAME: {enterprise_name}")
         if user_id and not users.is_user_admin(user_id):
             return jsonify({
                 "response_type": "ephemeral",
