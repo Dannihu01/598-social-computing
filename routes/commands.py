@@ -16,6 +16,7 @@ from services.gemini_client import ask_gemini, ask_gemini_structured
 from utils.slack_api import open_im, chat_post_message
 from services.gemini_client import ask_gemini_structured
 from datetime import datetime, timezone, timedelta
+from zoneinfo import ZoneInfo
 
 from database.repos import users, enterprises, messages, events, responses, events
 from services.event_finalizer import finalize_event
@@ -36,8 +37,6 @@ def slash():
     enterprise_name = request.form.get("enterprise_name", None) or request.form.get("team_domain", "default")
     text = (request.form.get("text") or "").strip()
     response_url = request.form.get("response_url")
-
-    print(f"FORM NAME:\n{str(request.form)}\n----------")
 
     if not response_url:
         return jsonify({"response_type": "ephemeral", "text": "Missing response_url from Slack."}), 200
@@ -331,35 +330,31 @@ def slash():
     # ---------- /start_event ----------
     if command == "/start_event":
         """
-        Usage: /start_event [duration_in_minutes]
+        Usage: /start_event [duration_in_days]
         Examples:
-            /start_event        (default: 60 minutes = 1 hour)
-            /start_event 30     (30 minutes)
-            /start_event 120    (2 hours)
+            /start_event        (default: 3 days)
+            /start_event 5     (5 days)
         """
         try:
-            # Parse duration from text (default: 60 minutes)
-            duration_minutes = 60
+            # Parse duration from text (default: 60 days)
+            duration_days = 3
             if text.strip():
                 try:
-                    duration_minutes = int(text.strip())
-                    if duration_minutes <= 0:
+                    duration_days = int(text.strip())
+                    if duration_days <= 0:
                         return jsonify({
                             "response_type": "ephemeral",
-                            "text": "⚠️ Duration must be a positive number of minutes."
+                            "text": "⚠️ Duration must be a positive number of days."
                         }), 200
                 except ValueError:
                     return jsonify({
                         "response_type": "ephemeral",
-                        "text": "⚠️ Invalid duration. Usage: `/start_event [duration_in_minutes]`\nExample: `/start_event 30` for 30 minutes"
+                        "text": "⚠️ Invalid duration. Usage: `/start_event [duration_in_days]`\nExample: `/start_event 3` for 3 days"
                     }), 200
-        
-            # Clear existing events, then create a new one
-            events.delete_all_events()
 
             # create new event
-            time_start = datetime.now(timezone.utc).replace(microsecond=0)
-            result = events.create_event(time_start=time_start, duration_minutes=duration_minutes)
+            time_start = datetime.now(tz=ZoneInfo("America/New_York")).replace(microsecond=0)
+            result = events.create_event(time_start=time_start, duration_days=duration_days)
 
             if result == "event_already_active":
                 return jsonify({"response_type":"ephemeral","text":"⚠️ There is already an active event."}), 200
@@ -379,20 +374,11 @@ def slash():
             events.add_message_to_event(evt.id, msg.id)
 
             # Calculate end time for DM message
-            end_time = time_start + timedelta(minutes=duration_minutes)
+            end_time = time_start + timedelta(days=duration_days)
             
             # Format duration for user-friendly display
-            if duration_minutes < 60:
-                time_remaining = f"{duration_minutes} minutes"
-            elif duration_minutes == 60:
-                time_remaining = "1 hour"
-            else:
-                hours = duration_minutes // 60
-                mins = duration_minutes % 60
-                if mins > 0:
-                    time_remaining = f"{hours} hour{'s' if hours > 1 else ''} and {mins} minute{'s' if mins > 1 else ''}"
-                else:
-                    time_remaining = f"{hours} hour{'s' if hours > 1 else ''}"
+            time_remaining = f"{duration_days} days"
+           
             
             # Create the full message with prompt and time information
             dm_message = f"{msg.content}\n\n" \
@@ -418,11 +404,7 @@ def slash():
                     failed += 1
 
             # Format duration for admin confirmation display
-            duration_display = f"{duration_minutes} minutes"
-            if duration_minutes >= 60:
-                hours = duration_minutes // 60
-                mins = duration_minutes % 60
-                duration_display = f"{hours}h {mins}m" if mins > 0 else f"{hours}h"
+            duration_display = f"{duration_days} day(s)"
 
             return jsonify({"response_type":"ephemeral",
                             "text": f"✅ Started event {evt.id} with prompt {msg.id}\n"

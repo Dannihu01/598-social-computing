@@ -59,7 +59,7 @@
                 "command": "/start_event",
                 "url": "https://five98-social-computing-bot.onrender.com/slack/commands",
                 "description": "Start an event and send prompts to all opted-in users",
-                "usage_hint": "[duration_in_minutes] (default: 60)",
+                "usage_hint": "[duration_in_days] (default: 60)",
                 "should_escape": false
             },
             {
