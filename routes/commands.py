@@ -154,12 +154,20 @@ def slash():
     # ---------- /opt_in ----------
     if command == "/opt_in":
         slack_id = request.form.get("user_id")
+        print(f"slack_id: {slack_id}")
+        print(slack_id)
         user = users.get_user_by_slack_id(slack_id)
         if user:
-            return jsonify({"text": "✅ You’re already opted in!"})
+            return jsonify({"text": f"🎉 You’ve successfully opted in!\n "
+            "Terms of Service: By opting-in, you are agreeing to participating in a term-project for Social Computing, "
+            "CSE 598-012. We only collect resposnes you provide, which are used with LLMs to generate new channels. If at any point you wish to not "
+            "participate, please use the command '/opt_out'. To review this message, simply type '/opt_in'. Thank you for joining us!"})
         # User not found → create
         user = users.create_user(slack_id)
-        return jsonify({"text": f"🎉 You’ve successfully opted in! (UUID: {user.id})"})
+        return jsonify({"text": f"🎉 You’ve successfully opted in!\n "
+            "Terms of Service: By opting-in, you are agreeing to participating in a term-project for Social Computing, "
+            "CSE 598-012. We only collect resposnes you provide, which are used with LLMs to generate new channels. If at any point you wish to not "
+            "participate, please use the command '/opt_out'. To review this message, simply type '/opt_in'. Thank you for joining us!"})
 
     if command == "/generate_prompt":
         prompt_schema = {
