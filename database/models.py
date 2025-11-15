@@ -20,7 +20,7 @@ class User:
 class Event:
     id: int
     time_start: Optional[datetime]
-    duration_minutes: Optional[int]  # Changed from day_duration to duration_minutes
+    duration_days: Optional[int]  # Changed from day_duration to duration_days
     is_finalized: Optional[int] = 0  # 0 = not finalized, 1 = finalized
 
 
