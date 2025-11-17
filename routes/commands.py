@@ -166,7 +166,7 @@ def slash():
             message = "/n".join(message)
             if not user:
                 user = users.create_user(slack_id)
-            im_channel = open_im(user_id)
+            im_channel = open_im(slack_id)
             chat_post_message(im_channel, message)
 
         return jsonify({
