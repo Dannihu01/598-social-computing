@@ -157,8 +157,18 @@ def slash():
 
         def worker():
             user = users.get_user_by_slack_id(slack_id)
+            message = [
+                f"🎉 You’ve successfully opted in!\n ",
+                "Terms of Service: By opting-in, you are agreeing to participating in a term-project for Social Computing, ",
+                "CSE 598-012. We only collect responses you provide, which are used with LLMs to generate new channels. If at any point you wish to not ",
+                "participate, please use the command '/opt_out'. To review this message, simply type '/opt_in'. Thank you for joining us!"
+            ]
+            message = "/n".join(message)
             if not user:
                 user = users.create_user(slack_id)
+            im_channel = open_im(user_id)
+            chat_post_message(im_channel, message)
+
         return jsonify({
             "response_type": "ephemeral",
             "text": f"🎉 You’ve successfully opted in!\n "
