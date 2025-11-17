@@ -156,7 +156,6 @@ def slash():
         slack_id = request.form.get("user_id")
 
         def worker():
-            log.info("in here")
             user = users.get_user_by_slack_id(slack_id)
             message = [
                 f"🎉 You’ve successfully opted in! ",
