@@ -24,8 +24,6 @@ log = logging.getLogger("slack-ask-bot")
 commands_bp = Blueprint("commands_bp", __name__, url_prefix="/slack")
 
 
-
-
 @commands_bp.post("/commands")
 def slash():
     if not verify_slack(request):
@@ -34,7 +32,8 @@ def slash():
     command = request.form.get("command", "")
     user_id = request.form.get("user_id", "")
     channel_id = request.form.get("channel_id", "")
-    enterprise_name = request.form.get("enterprise_name", None) or request.form.get("team_domain", "default")
+    enterprise_name = request.form.get(
+        "enterprise_name", None) or request.form.get("team_domain", "default")
     text = (request.form.get("text") or "").strip()
     response_url = request.form.get("response_url")
 
@@ -155,20 +154,18 @@ def slash():
     # ---------- /opt_in ----------
     if command == "/opt_in":
         slack_id = request.form.get("user_id")
-        print(f"slack_id: {slack_id}")
-        print(slack_id)
-        user = users.get_user_by_slack_id(slack_id)
-        if user:
-            return jsonify({"text": f"🎉 You’ve successfully opted in!\n "
+
+        def worker():
+            user = users.get_user_by_slack_id(slack_id)
+            if not user:
+                user = users.create_user(slack_id)
+        return jsonify({
+            "response_type": "ephemeral",
+            "text": f"🎉 You’ve successfully opted in!\n "
             "Terms of Service: By opting-in, you are agreeing to participating in a term-project for Social Computing, "
             "CSE 598-012. We only collect responses you provide, which are used with LLMs to generate new channels. If at any point you wish to not "
-            "participate, please use the command '/opt_out'. To review this message, simply type '/opt_in'. Thank you for joining us!"})
-        # User not found → create
-        user = users.create_user(slack_id)
-        return jsonify({"text": f"🎉 You’ve successfully opted in!\n "
-            "Terms of Service: By opting-in, you are agreeing to participating in a term-project for Social Computing, "
-            "CSE 598-012. We only collect responses you provide, which are used with LLMs to generate new channels. If at any point you wish to not "
-            "participate, please use the command '/opt_out'. To review this message, simply type '/opt_in'. Thank you for joining us!"})
+            "participate, please use the command '/opt_out'. To review this message, simply type '/opt_in'. Thank you for joining us!"
+        }), 200
 
     if command == "/generate_prompt":
         prompt_schema = {
@@ -180,10 +177,8 @@ def slash():
             }
         }
 
-
         # Extract additional description from user input (everything after the command)
         additional_description = text.strip() if text.strip() else ""
-
 
         prompt = """You are a helpful event planning assistant that will generate a prompt that is a single, 
         open-ended question meant to find common interest among users in a group.
@@ -199,7 +194,6 @@ def slash():
         to the following groups description to help you curate the best question possible (if present):\n
         """
 
-
         # Get enterprise description
         enterprise = enterprises.get_enterprise_by_name(enterprise_name)
         if enterprise and enterprise.description:
@@ -207,11 +201,9 @@ def slash():
         else:
             prompt += "No group context available.\n\n"
 
-
         # Add user's additional description if provided
         if additional_description:
             prompt += f"Additional requirements from user: {additional_description}\n\n"
-
 
         prompt += "Please generate a single creative question based on the above information."
 
@@ -235,12 +227,10 @@ def slash():
             else:
                 message = f"<@{user_id}> requested a prompt generation\n\n*Generated prompt:* {answer.get('result', 'No answer generated')}"
 
-
             # Save the generated prompt to the message bank
             if answer != "(no answer)" and answer.get('result'):
                 messages.create_private_message(answer.get('result'))
                 message += "\n\n✅ *Prompt saved to message bank!*"
-
 
             try:
                 im_channel = open_im(user_id)
@@ -272,7 +262,6 @@ def slash():
         threading.Thread(target=worker, daemon=True).start()
         return "", 200
 
-
     if command == "/list_messages":
         if user_id and not users.is_user_admin(user_id):
             return jsonify({
@@ -283,13 +272,11 @@ def slash():
         def worker():
             sys_messages = messages.get_orphaned_private_messages()
 
-
             # Format the messages for display
             if sys_messages:
                 message_text = "📝 Available prompts:\n\n"
                 for i, msg in enumerate(sys_messages, 1):
                     message_text += f"{i}. *ID: {msg.id}* - {msg.content}\n"
-
 
                 message_text += "\n💡 *How to use a prompt:*\n"
                 message_text += "• Use `/add_message_to_event <message_id> <event_id>` to associate a prompt with an event\n"
@@ -326,7 +313,6 @@ def slash():
         events.reset_event_counter()
         return jsonify({"text": "✅ Event counter reset to 1."}), 200
 
-
     # ---------- /start_event ----------
     if command == "/start_event":
         """
@@ -353,13 +339,15 @@ def slash():
                     }), 200
 
             # create new event
-            time_start = datetime.now(tz=ZoneInfo("America/New_York")).replace(microsecond=0)
-            result = events.create_event(time_start=time_start, duration_days=duration_days)
+            time_start = datetime.now(tz=ZoneInfo(
+                "America/New_York")).replace(microsecond=0)
+            result = events.create_event(
+                time_start=time_start, duration_days=duration_days)
 
             if result == "event_already_active":
-                return jsonify({"response_type":"ephemeral","text":"⚠️ There is already an active event."}), 200
+                return jsonify({"response_type": "ephemeral", "text": "⚠️ There is already an active event."}), 200
             if result != "success":
-                return jsonify({"response_type":"ephemeral","text":"❌ Couldn't create event."}), 200
+                return jsonify({"response_type": "ephemeral", "text": "❌ Couldn't create event."}), 200
 
             # Fetch the event we just created
             evt = events.get_active_event()
@@ -367,23 +355,23 @@ def slash():
             # Get an unused prompt (not used in any unfinalized events)
             unused_msgs = messages.get_unused_private_messages()
             if not unused_msgs:
-                return jsonify({"response_type":"ephemeral","text":"⚠️ No unused prompts found. All prompts are currently in use, or add more with `/create_message <text>`."}), 200
-            msg = unused_msgs[0]  # Get first unused prompt (already randomized in query)
+                return jsonify({"response_type": "ephemeral", "text": "⚠️ No unused prompts found. All prompts are currently in use, or add more with `/create_message <text>`."}), 200
+            # Get first unused prompt (already randomized in query)
+            msg = unused_msgs[0]
 
             # Attach prompt to event
             events.add_message_to_event(evt.id, msg.id)
 
             # Calculate end time for DM message
             end_time = time_start + timedelta(days=duration_days)
-            
+
             # Format duration for user-friendly display
             time_remaining = f"{duration_days} days"
-           
-            
+
             # Create the full message with prompt and time information
             dm_message = f"{msg.content}\n\n" \
-                        f"⏰ *Time to respond:* {time_remaining}\n" \
-                        f"📅 *Response deadline:* {end_time.strftime('%I:%M %p %Z, %b %d')}"
+                f"⏰ *Time to respond:* {time_remaining}\n" \
+                f"📅 *Response deadline:* {end_time.strftime('%I:%M %p %Z, %b %d')}"
 
             # DM all opted-in users
             delivered = failed = 0
@@ -406,16 +394,16 @@ def slash():
             # Format duration for admin confirmation display
             duration_display = f"{duration_days} day(s)"
 
-            return jsonify({"response_type":"ephemeral",
+            return jsonify({"response_type": "ephemeral",
                             "text": f"✅ Started event {evt.id} with prompt {msg.id}\n"
-                                   f"⏱️ Duration: {duration_display}\n"
-                                   f"📅 Ends at: {end_time.strftime('%Y-%m-%d %H:%M:%S %Z')}\n"
-                                   f"📨 DMs sent: {delivered}, failed: {failed}"}), 200
+                            f"⏱️ Duration: {duration_display}\n"
+                            f"📅 Ends at: {end_time.strftime('%Y-%m-%d %H:%M:%S %Z')}\n"
+                            f"📨 DMs sent: {delivered}, failed: {failed}"}), 200
 
         except Exception:
             log.exception("start_event failed")
-            return jsonify({"response_type":"ephemeral","text":"❌ Couldn't start event. Check logs."}), 200
-    
+            return jsonify({"response_type": "ephemeral", "text": "❌ Couldn't start event. Check logs."}), 200
+
     # ---------- /send_survey ----------
     if command == "/send_survey":
         '''
@@ -460,7 +448,6 @@ def slash():
         print(f"DMs sent to {len(success)} users, failed for {len(failed)}")
         return jsonify({"text": f"Sent survey to {len(success)} users, failed for {len(failed)}"}), 200
 
-
    # ---------- /finalize_event ----------
     if command == "/finalize_event":
         """
@@ -476,12 +463,13 @@ def slash():
                 if text.strip():
                     try:
                         target_event_id = int(text.strip())
-                        log.info(f"Finalizing event {target_event_id} (user-specified)")
+                        log.info(
+                            f"Finalizing event {target_event_id} (user-specified)")
                     except ValueError:
                         error_msg = f"⚠️ Invalid event ID: '{text}'. Please provide a number or leave blank for active event."
                         post_to_response_url(response_url, error_msg)
                         return
-                
+
                 # If no event_id provided, get the active event
                 if target_event_id is None:
                     active_event = events.get_active_event()
@@ -491,26 +479,26 @@ def slash():
                         return
                     target_event_id = active_event.id
                     log.info(f"Finalizing active event {target_event_id}")
-                
+
                 # Send immediate acknowledgment
                 initial_msg = f"🔄 Finalizing event {target_event_id}... This may take a moment."
                 post_to_response_url(response_url, initial_msg)
-                
+
                 # Call the event finalizer
                 result = finalize_event(target_event_id)
-                
+
                 # Format response message
                 if result["success"]:
                     message = f"✅ *Event {target_event_id} finalized successfully!*\n\n"
                     message += f"📊 *Summary:*\n"
                     message += f"• Groups created: {result['groups_created']}\n"
                     message += f"• Channels created: {len(result['channels_created'])}\n"
-                    
+
                     if result['channels_created']:
                         message += f"\n📢 *Channels:*\n"
                         for channel_id in result['channels_created']:
                             message += f"• <#{channel_id}>\n"
-                    
+
                     if result['errors']:
                         message += f"\n⚠️ *Warnings ({len(result['errors'])}):*\n"
                         for error in result['errors'][:3]:  # Show first 3 errors
@@ -525,9 +513,9 @@ def slash():
                             message += f"• {error}\n"
                     else:
                         message += "No groups could be created from the responses."
-                
+
                 post_to_response_url(response_url, message)
-                
+
             except Exception as e:
                 log.error(f"Error in /finalize_event: {e}")
                 error_msg = f"❌ Unexpected error: {str(e)}"
@@ -535,7 +523,7 @@ def slash():
                     post_to_response_url(response_url, error_msg)
                 except:
                     log.exception("Failed to post error response")
-        
+
         threading.Thread(target=worker, daemon=True).start()
         return "", 200
 
