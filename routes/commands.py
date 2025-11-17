@@ -156,9 +156,10 @@ def slash():
         slack_id = request.form.get("user_id")
 
         def worker():
+            log.info("in here")
             user = users.get_user_by_slack_id(slack_id)
             message = [
-                f"🎉 You’ve successfully opted in!\n ",
+                f"🎉 You’ve successfully opted in! ",
                 "Terms of Service: By opting-in, you are agreeing to participating in a term-project for Social Computing, ",
                 "CSE 598-012. We only collect responses you provide, which are used with LLMs to generate new channels. If at any point you wish to not ",
                 "participate, please use the command '/opt_out'. To review this message, simply type '/opt_in'. Thank you for joining us!"
@@ -169,6 +170,7 @@ def slash():
             im_channel = open_im(slack_id)
             chat_post_message(im_channel, message)
 
+        threading.Thread(target=worker, daemon=True).start()
         return jsonify({
             "response_type": "ephemeral",
             "text": f"Processing opt-in, you should receieve a confirmation DM once you are registered."
