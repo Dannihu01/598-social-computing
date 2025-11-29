@@ -7,12 +7,13 @@
 import logging
 import atexit
 from flask import Flask, jsonify
-from config import PORT
+from config import PORT, EVENT_FINALIZATION_CHECK_INTERVAL
 from routes.commands import commands_bp
 from routes.events import events_bp
 from routes.oauth import oauth_bp
 import os
 from database import db
+from services.event_scheduler import start_scheduler, stop_scheduler
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger("slack-ask-bot")
@@ -28,8 +29,15 @@ app.register_blueprint(oauth_bp)  # mounts /slack/oauth/callback
 dsn = f"dbname={os.environ.get('DATABASE_NAME')} user={os.environ['DATABASE_USER']} password={os.environ['DATABASE_PASSWORD']} host={os.environ['DATABASE_HOST']} port={os.environ.get('DATABASE_PORT',5432)}"
 db.init_pool(dsn=dsn)
 
-# Register cleanup function to close DB pool on app shutdown
+# Start the event auto-finalization scheduler
+# Only start in the main process (not in Flask's reloader process)
+# Check interval configured in .env (default: 5 minutes)
+if os.environ.get('WERKZEUG_RUN_MAIN') == 'true' or os.environ.get('WERKZEUG_RUN_MAIN') is None:
+    start_scheduler(check_interval_minutes=EVENT_FINALIZATION_CHECK_INTERVAL)
+
+# Register cleanup functions
 atexit.register(db.close_pool)
+atexit.register(stop_scheduler)
 
 
 @app.get("/")
@@ -43,3 +51,4 @@ if __name__ == "__main__":
     finally:
         # Ensure DB pool is closed on exit
         db.close_pool()
+        stop_scheduler()

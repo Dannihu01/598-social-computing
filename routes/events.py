@@ -64,18 +64,39 @@ def slack_events():
     payload = request.json
     event = payload.get("event", {})
     event_type = event.get("type")
-    # print(f"Received event: {event}")
+    
+    # Debug logging
+    print(f"Event type: {event_type}")
+    print(f"Event channel_type: {event.get('channel_type')}")
+    print(f"Event channel: {event.get('channel')}")
+    print(f"Full event: {event}")
+    
     # Ignore bot's own messages
     if event.get("bot_id"):
+        print("Ignoring bot message")
         return "", 200
 
     # Handle different event types
     if event_type == "message":
-        # Check if it's a DM (direct message)
-        if event.get("channel_type") == "im":
+        # Ignore message_changed, message_deleted, etc.
+        if event.get("subtype"):
+            print(f"Ignoring message subtype: {event.get('subtype')}")
+            return "", 200
+            
+        channel = event.get("channel", "")
+        channel_type = event.get("channel_type")
+        
+        # DMs have channel_type="im" OR channel starting with "D"
+        is_dm = channel_type == "im" or (channel and channel.startswith("D"))
+        
+        print(f"Message event - channel: {channel}, channel_type: {channel_type}, is_dm: {is_dm}")
+        
+        if is_dm:
+            print("Processing as DM")
             process_dm_message(event)
         # Check if it's in a thread
         elif event.get("thread_ts"):
+            print("Processing as thread message")
             process_message_event(event)
 
     elif event_type == "reaction_added":
