@@ -80,8 +80,6 @@ def create_event(time_start: Optional[datetime] = None, day_duration: int = 7) -
         return "database_error"
 
 
-
-
 def delete_event(event_id: int) -> Literal["success", "event_not_found", "database_error"]:
     """
     Delete an event from the database.
@@ -99,7 +97,6 @@ def delete_event(event_id: int) -> Literal["success", "event_not_found", "databa
             # First check if the event exists
             cur.execute("SELECT id FROM events WHERE id = %s", (event_id,))
 
-            
             if not cur.fetchone():
                 return "event_not_found"
 
@@ -124,6 +121,22 @@ def get_active_event() -> Optional[Event]:
     with get_db_cursor() as cur:
         cur.execute("SELECT id, time_start, day_duration FROM events WHERE time_start <= NOW() AND time_start + INTERVAL '1 day' * day_duration >= NOW() ORDER BY time_start ASC LIMIT 1")
         row = cur.fetchone()
+        if row:
+            return Event(id=row[0], time_start=row[1], day_duration=row[2])
+        return None
+
+
+def get_most_recent_event():
+    with get_db_cursor() as cur:
+        query = """SELECT *
+                    FROM events
+                    WHERE time_start = (
+                        SELECT MAX(time_start)
+                        FROM events
+                    );"""
+        cur.execute(query)
+        row = cur.fetchone()
+        print(row)
         if row:
             return Event(id=row[0], time_start=row[1], day_duration=row[2])
         return None

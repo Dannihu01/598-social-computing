@@ -382,10 +382,10 @@ def slash():
         survey_url = request.form.get("text")
 
         # get current event and list of responders
-        current_event = events.get_active_event()
-        print("Current event:", current_event)
-        responder_user_ids = responses.get_event_user_ids(current_event.id)
-        print(f"Responses for event {current_event.id}:", responder_user_ids)
+        most_recent_event = events.get_most_recent_event()
+        print("Current event:", most_recent_event)
+        responder_user_ids = responses.get_event_user_ids(most_recent_event.id)
+        print(f"Responses for event {most_recent_event.id}:", responder_user_ids)
 
         if not responder_user_ids:
             return jsonify({"text": f"No one responded."}), 200
